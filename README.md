@@ -6,9 +6,9 @@
 
 ## BOM
 
-### Kria KV260
+##### Kria KV260
 
-### DoomV - Software Simulator used for verification
+##### DoomV - Software Simulator used for verification
 
-### 
+#####
 
