@@ -14,7 +14,7 @@ Additionally, the CPU core itself is not the primary focus of optimization, it's
 
 However, the V-Extension of the RVA23 core here adds complexity. Users will have the ability to choose the width of the vector execution units (the length will be set at 128) when configuring their CPU (costs more LUT tho). (Otherwise, our default behavior will be to stall until every operation is complete)
 
-The dynamic systolic array unit is the primary focus here. The goal is to feed Hydra a .gguf and an FPGA target, get the parameters from it, and get an optimized systolic array unit out of it. The user will get a recommended implementation, but users can configure it to generate their own configuration.
+The dynamic systolic array unit is the primary focus here. The goal is to feed Hydra a .gguf and an FPGA target, get the parameters from it, and get an optimized systolic array unit out of it. (Thing like the PE's will be based around the data-types used in the .gguf, etc, etc). The user will get a recommended implementation, but users can configure it to generate their own configuration.
 
 ## How to Generate and build!
 
