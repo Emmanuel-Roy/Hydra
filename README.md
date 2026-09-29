@@ -8,11 +8,13 @@ Ouroboros is a FPGA Laptop created by vibe coding to vibe code more. We use a st
 
 Ouroboros aims to be fully RVA23S64 Compliant, verified by running DoomV in Lock-step (which is Sail Compliant).
 
-Ouroboros is more of a funny proof of concept than an actual competitive commercial tool, so for ease of development there will only be basic pipelining with no-op based hazard fixing. Additionally, only ONE hart will be supported (Hardware Thread).
+Ouroboros is more of a funny proof of concept than an actual competitive commercial tool, so for ease of development there will only be basic pipelining with stalls to fix hazards. Additionally, only ONE hart will be supported (Hardware Thread).
 
 Additionally, the CPU core itself is not the primary focus of optimization, it's purpose is only to boot Ubuntu and commercial software here. If I don't get bored, I'll work on optimizing it for either faster throughput or to minimize look-up tables.
 
-The dynamic systolic array unit is the primary focus here. The goal is to feed Hydra a .gguf and an FPGA target, get the parameters from it, and get an optimized systolic array unit out of it.
+However, the V-Extension of the RVA23 core here adds complexity. Users will have the ability to choose the width of the vector execution units (the length will be set at 128) when configuring their CPU (costs more LUT tho). (Otherwise, our default behavior will be to stall until every operation is complete)
+
+The dynamic systolic array unit is the primary focus here. The goal is to feed Hydra a .gguf and an FPGA target, get the parameters from it, and get an optimized systolic array unit out of it. The user will get a recommended implementation, but users can configure it to generate their own configuration.
 
 ## How to Generate and build!
 
@@ -39,7 +41,7 @@ This program uses Vitis for compliation.
 
 ## Software Architecture
 
-Run Ouroboros, it will ask for a .gguf and it will ask for an FPGA target. From that target, it reads the model parameters, and the FPGA specifications (Memory / Look-up tables). It will build an estimated requirements document (LUTS needed for the CPU and Systolic Array, number of PE's for the Systolic Array, KV Cache Requirements, Memory format in the PE units, etc) for the user, and it will warn the user if that model optimized architecture won't work for that particular FPGA. With the requirements doc, the software will adjust parameters in the Vitis C++ code, then synthesize for Vivado compilation. 
+Run Ouroboros, it will ask for a .gguf and it will ask for an FPGA target. From that target, it reads the model parameters, and the FPGA specifications (Memory / Look-up tables). It will build an estimated requirements document (LUTS needed for the CPU and Systolic Array, number of PE's for the Systolic Array, KV Cache Requirements, Memory format in the PE units, etc) for the user, and it will warn the user if that model optimized architecture won't work for that particular FPGA. With the requirements doc, the software will adjust parameters in the Vitis C++ code, then synthesize for Vivado compilation. It will then generate a bitstream for the target FPGA.
 
 ## BOM
 
