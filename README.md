@@ -22,7 +22,7 @@ When you build, you will be given the generic builds for the CPU in one folder a
 
 Ideally almost everything will be configurable at build time. (ISA Extensions, Specifics for V Extension, Data Types for the PE Units, Number of PE Units, KV Cache, I/O ports, number of DMA controllers, etc).
 
-Many of these will have pre-calculated recommended optimized settings based on the FPGA (Have controllers for all available I/O that the FPGA support, use data-types based on .gguf, extra space for bigger vector unit). Users will be asked what use cases they want to target, "super-fast prefill, super-fast decode (tokens/sec, balanced, or a percentile of their goals).
+Many of these will have pre-calculated recommended optimized settings based on the FPGA (Have controllers for all available I/O that the FPGA support, use data-types based on .gguf, extra space for bigger vector unit). Ideally, it will also optimize around available memory. We will NOT be using any built in CPU cores, cause that's lame. Users will be asked what use cases they want to target, "super-fast prefill, super-fast decode (tokens/sec, balanced, or a percentile of their goals).
 
 All of this will ideally be in a clean CLI kinda like claude code. (Like with fancy text and animations showing current system progress, what step it's on, where it might fail, what is responsible for said failures.)
 
