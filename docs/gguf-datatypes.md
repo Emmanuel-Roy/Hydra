@@ -53,14 +53,44 @@ regenerated and any new type gets a row before the pin is accepted.
 | **ternary** | TQ2_0 | 256 | 66 | 2.0625 | d; values in {-1, 0, 1}, 2 bits each |
 | | TQ1_0 | 256 | 54 | 1.6875 | d; values in {-1, 0, 1}, five per byte in base 3 |
 
+## The datapath is optimised for the `.gguf`
+
+Supporting every type is the floor; the design goal is the chosen model
+(decisions, 2026-10-01). Ouroboros reads the type of every tensor in the
+`.gguf` header, weighs each type by how many bytes of weights it accounts for,
+and shapes the accelerator around that mix:
+
+- **Multiplier widths.** llama.cpp quantises activations to 8 bits for its dot
+  products (Q8_K, Q8_0, Q8_1), so a multiply is an 8-bit activation times a
+  weight of the model's width. The PEs are sized for the widths the model
+  actually uses, with narrow weights packed several to a DSP (for example four
+  4-bit multiplies per DSP48E2, two 8-bit) -- so a 4-bit model gets twice the
+  multiplies per DSP that a generic 8-bit design would.
+- **The arithmetic itself, where the model calls for it.** A ternary model
+  (TQ1_0, TQ2_0) gets PEs with no multipliers -- add, subtract or skip. An FP4
+  model (MXFP4, NVFP4) gets FP4 PEs with their scale formats. An F16 or BF16
+  model gets a floating-point datapath of that format.
+- **Unpacker throughput in proportion.** Decode streams every weight once per
+  token, so each type's unpacker gets the lanes it needs to keep up with DDR
+  for its share of the model's bytes -- a Q4_K_M file, mostly Q4_K with some
+  Q5_K and Q6_K, gets a wide Q4_K unpacker and narrower ones beside it.
+- **Scales and accumulators** sized for the model's block structure (fp16 `d`
+  per block, K-quant sub-block scales, E8M0/E4M3 for FP4) and its dimensions.
+
+This is the configurator's recommendation; any part of it can be overridden.
+Optimising never means approximating: every type the build includes still
+produces exactly what ggml produces. A type included beyond the model's own
+(to run other models on the same bitstream) runs through the nearest datapath
+at whatever speed that gives, and the configurator says what it costs.
+
 ## How the hardware supports all of them
 
-**One unpacker per family, one arithmetic core.** Each family above has its
-own HLS unpacker that turns a block into small integers (or, for the plain
-floating-point types, floats) and the scales they are multiplied by. Behind
-the unpackers sits the shared multiply-accumulate core, then a scale stage.
-The unpacker is where the types differ; the arithmetic is common, which is
-what makes supporting every type affordable.
+**One unpacker per family, in front of the datapath.** Each family above has
+its own HLS unpacker that turns a block into small integers (or, for the plain
+floating-point types, floats) and the scales they are multiplied by, feeding
+the multiply-accumulate datapath sized for the model (above) and then a scale
+stage. Keeping the type-specific work in the unpackers is what makes
+supporting every type affordable.
 
 | family | unpacker does | needs |
 |---|---|---|

@@ -5,6 +5,14 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**The model's datatypes are optimised for the `.gguf`.** Beyond supporting
+every type, the accelerator's datapath is shaped around the chosen model's
+tensor-type mix: multiplier widths and DSP packing for its weight widths,
+multiplier-free PEs for ternary models, FP4 PEs for FP4 models, a
+floating-point datapath for F16/BF16 models, and unpacker throughput in
+proportion to each type's share of the bytes -- always bit-exact with ggml
+([gguf-datatypes.md](gguf-datatypes.md)).
+
 **Every datatype a `.gguf` can hold is supported, in hardware.** All 35 live
 `ggml_type`s, including the IQ lattice-codebook, ternary and FP4 types, with
 none left to a CPU fallback -- superseding the configurator report's proposal
