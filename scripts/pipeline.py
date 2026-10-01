@@ -34,6 +34,7 @@ import datetime as dt
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -133,21 +134,36 @@ def cmd_targets(args, cfg) -> int:
 
 # ---- check ----------------------------------------------------------------------
 
-PARTS_TCL = 'puts "OUROBOROS_PARTS [llength [get_parts -quiet {part}]]"\n'
+# Counting all parts tells "nothing usable at all" (a licence tier that covers
+# none of the installed families) from "this part missing"; trying to use the
+# part makes Vivado name the licence tier when that is the reason.
+PARTS_TCL = """puts "OUROBOROS_PARTS [llength [get_parts -quiet {part}]] [llength [get_parts -quiet]]"
+catch {{create_project -in_memory -part {part}}}
+"""
+LICENCE_TIER = re.compile(r"current selected license is (\w+)", re.I)
 
 
 def part_visible(tools: AmdTools, part: str) -> tuple[bool, str]:
-    """Whether Vivado can use the part: installed, and licensed."""
+    """Whether Vivado can use the part: installed, and licensed. When it
+    cannot, says why as precisely as Vivado does."""
     BUILD.mkdir(parents=True, exist_ok=True)
     tcl = BUILD / "check_part.tcl"
     tcl.write_text(PARTS_TCL.format(part=part))
     status, _ = tools.run("vivado", ["-mode", "batch", "-nojournal", "-nolog", "-source", str(tcl)],
                           log=BUILD / "check_part.log", cwd=BUILD, timeout=1800)
     text = (BUILD / "check_part.log").read_text(errors="replace")
+    tier = LICENCE_TIER.search(text)
     for line in text.splitlines():
         if line.startswith("OUROBOROS_PARTS"):
-            n = int(line.split()[1])
-            return n > 0, "" if n else "Vivado cannot see the part: it is not installed or not licensed"
+            seen, total = (int(x) for x in line.split()[1:3])
+            if seen:
+                return True, ""
+            if tier:
+                return False, (f"the selected licence tier is {tier.group(1)}, which does not cover this part "
+                               f"(Vivado sees {total} parts in all) -- change it in the Vivado License Manager "
+                               f"({tools.root / 'Vivado' / 'bin' / 'vlm.bat'}, 'Manage Licenses')")
+            return False, (f"Vivado cannot see the part ({total} parts visible in all): "
+                           f"not installed, or not licensed")
     return False, f"Vivado did not answer (exit {status}); see {BUILD / 'check_part.log'}"
 
 
@@ -229,7 +245,13 @@ def cmd_run(args, cfg) -> int:
     if unknown:
         sys.exit(f"unknown components: {', '.join(unknown)}")
     suites = args.suites.split(",") if args.suites else []
-    r = new_run(args.label, target_name, {"components": comps, "stages": stages, "target": target,
+    # Comparable runs share their configuration, not only their component
+    # names: each component's HLS config and declared parameters are part of
+    # the key, so two configurations of one component are never compared.
+    comp_config = {c: {"hls_config": hashlib.sha256((rooted(all_comps[c]["dir"]) / "hls_config.cfg").read_bytes()).hexdigest()[:16],
+                       "declared": {k: v for k, v in all_comps[c].items() if k != "dir"}} for c in comps}
+    r = new_run(args.label, target_name, {"components": comps, "component_config": comp_config, "stages": stages,
+                                          "target": {k: target[k] for k in ("part", "clock_mhz")},
                                           "suites": suites}, cfg["tools"]["version"])
     run_dir = PERF / "runs" / r["id"]
     hw_stages = [s for s in stages if s in hls.STAGES]
@@ -252,11 +274,14 @@ def cmd_run(args, cfg) -> int:
         if not cores:
             r["notes"].append("accuracy: no core component with a `dut` yet; use `selftest` to exercise the harness")
         for c in cores:
-            r["accuracy"].update(run_accuracy(cfg, all_comps[c]["dut"], suites or list(cfg["suites"]), args))
+            # The core's own ISA: its `march` overrides the suites', so a
+            # narrower configuration is stepped against DoomV configured the same.
+            r["accuracy"].update(run_accuracy(cfg, all_comps[c]["dut"], suites or list(cfg["suites"]), args,
+                                              march=all_comps[c].get("march")))
     return finish(r, started)
 
 
-def run_accuracy(cfg, dut, suite_names, args) -> dict:
+def run_accuracy(cfg, dut, suite_names, args, march: str | None = None) -> dict:
     droot = rooted(cfg["doomv"]["root"])
     exe = droot / cfg["doomv"]["exe"]
     if not exe.exists():
@@ -268,7 +293,8 @@ def run_accuracy(cfg, dut, suite_names, args) -> dict:
             last[suite] = time.monotonic()
             say(f"{suite}: {i}/{n}  {row['test']}: {row['verdict']}")
 
-    return accuracy.run_suites(cfg["suites"], suite_names, droot, exe, dut, BUILD / "accuracy",
+    suites = {n: dict(s, march=march) if march else s for n, s in cfg["suites"].items()}
+    return accuracy.run_suites(suites, suite_names, droot, exe, dut, BUILD / "accuracy",
                                args.jobs, args.timeout, args.limit, progress)
 
 

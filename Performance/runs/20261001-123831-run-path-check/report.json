@@ -1,0 +1,39 @@
+{
+  "id": "20261001-123831-run-path-check",
+  "label": "run path check",
+  "commit": "a9ba50e+",
+  "target": "kv260_som",
+  "tools": "2026.1",
+  "key": "b4a57b20ca187fef",
+  "config": {
+    "components": [
+      "smoke"
+    ],
+    "component_config": {
+      "smoke": {
+        "hls_config": "22175892fe1dedb8",
+        "declared": {
+          "kind": "smoke",
+          "cosim": true
+        }
+      }
+    },
+    "stages": [
+      "accuracy"
+    ],
+    "target": {
+      "part": "xck26-sfvc784-2LV-c",
+      "clock_mhz": 100
+    },
+    "suites": []
+  },
+  "components": {},
+  "accuracy": {},
+  "notes": [
+    "accuracy: no core component with a `dut` yet; use `selftest` to exercise the harness"
+  ],
+  "seconds": 0.1,
+  "ok": true,
+  "previous": null,
+  "regressions": []
+}
