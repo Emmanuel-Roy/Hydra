@@ -77,11 +77,22 @@ and shapes the accelerator around that mix:
 - **Scales and accumulators** sized for the model's block structure (fp16 `d`
   per block, K-quant sub-block scales, E8M0/E4M3 for FP4) and its dimensions.
 
-This is the configurator's recommendation; any part of it can be overridden.
-Optimising never means approximating: every type the build includes still
-produces exactly what ggml produces. A type included beyond the model's own
-(to run other models on the same bitstream) runs through the nearest datapath
-at whatever speed that gives, and the configurator says what it costs.
+**The recommended configuration is optimised for just the supplied `.gguf`**
+-- its types and nothing else; every LUT the recommendation spends on the
+accelerator goes to the model in hand (decisions, 2026-10-01).
+
+**The user can spend LUTs on other datatypes.** Beyond the recommendation,
+any share of the accelerator's budget can be allocated to processing elements
+of other datatypes -- dedicated PEs and unpackers for, say, Q8_0 or MXFP4, to
+run other models on the same bitstream at speed. The configurator shows the
+split as a budget: how many LUTs, DSPs and BRAMs go to the model's own PEs and
+how many to each added datatype, with the estimate for each (tokens/s for the
+model, and for a model of each added type). Taking budget from the model's PEs
+lowers its prefill speed, and the estimate says by how much; decode is held by
+DDR bandwidth and changes little.
+
+Optimising never means approximating: every PE, of whatever datatype,
+produces exactly what ggml produces.
 
 ## How the hardware supports all of them
 
@@ -108,8 +119,9 @@ supporting every type affordable.
 - **recommended**: exactly the types present in the chosen `.gguf` -- read
   per tensor from its header, not from the file name (a "Q4_K_M" file also
   holds Q5_K and Q6_K tensors) -- plus the KV cache's type;
-- **more**: add any others, to run other models on the same bitstream;
-- **all**: every family's unpacker.
+- **more**: PEs and unpackers for other datatypes, with a share of the LUT
+  budget the user allocates to each (above);
+- **all**: every family's unpacker, with the budget split as the user chooses.
 
 Each unpacker's resource cost is measured when it is first built and stored
 with it, so the configurator can show what each one costs.

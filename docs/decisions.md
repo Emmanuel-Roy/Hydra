@@ -5,6 +5,12 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**Recommended: just the supplied `.gguf`. Allowed: LUTs for other datatypes.**
+The recommended configuration is optimised for the supplied `.gguf` alone. The
+user may allocate any share of the LUT budget to PEs of other datatypes, to
+run other models on the same bitstream; the configurator shows the split and
+what it costs the supplied model ([gguf-datatypes.md](gguf-datatypes.md)).
+
 **The model's datatypes are optimised for the `.gguf`.** Beyond supporting
 every type, the accelerator's datapath is shaped around the chosen model's
 tensor-type mix: multiplier widths and DSP packing for its weight widths,
