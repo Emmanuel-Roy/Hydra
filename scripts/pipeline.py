@@ -13,9 +13,9 @@
       resources and Fmax). Then the accuracy stage: every test of every suite
       run on the device under test and lock-stepped against DoomV, strictly.
 
-  python scripts/pipeline.py targets [--search kria] [--save xilinx.com:zcu104 --as zcu104]
-      The targets: those saved in FPGAs/ and every board and Vitis platform
-      installed with the AMD tools. --save adds a library board to FPGAs/.
+  python scripts/pipeline.py targets [--family zynquplus] [--search kv260]
+      What the program asks for a target, read from the Vitis installation:
+      the families, then a family's boards and devices.
 
   python scripts/pipeline.py selftest [--limit N]
       The accuracy stage with DoomV standing in for the core, to prove the
@@ -74,11 +74,11 @@ def git_commit() -> str:
 
 
 def pick_target(cfg: dict, name: str | None) -> tuple[str, dict]:
-    """A target from FPGAs/ or the installed library; the part is read from
-    the library's board files, the clock from the defaults."""
+    """A target from the Vitis installation: a board, or a full part. The
+    clock is a configuration choice, from the defaults."""
     name = name or cfg["defaults"]["target"]
     try:
-        t = targets.resolve(name, ROOT, rooted(cfg["tools"]["root"]))
+        t = targets.resolve(name, rooted(cfg["tools"]["root"]))
     except LookupError as e:
         sys.exit(str(e))
     t["clock_mhz"] = cfg["defaults"]["clock_mhz"]
@@ -86,32 +86,48 @@ def pick_target(cfg: dict, name: str | None) -> tuple[str, dict]:
 
 
 def cmd_targets(args, cfg) -> int:
+    """What the program will ask: family, then FPGA -- all read from Vitis."""
     tools_root = rooted(cfg["tools"]["root"])
-    mine = targets.saved(ROOT)
-    print("Saved in FPGAs/:")
-    for name, t in mine.items():
-        try:
-            part = targets.resolve(name, ROOT, tools_root)["part"]
-        except LookupError as e:
-            part = f"UNRESOLVED: {e}"
-        print(f"  {name:20} {t.get('name', ''):45} {part}")
-    boards = targets.library_boards(tools_root)
-    plats = targets.library_platforms(tools_root)
+    fams = targets.families(tools_root)
+    brds = targets.boards(tools_root)
     q = (args.search or "").lower()
-    shown = [b for b in boards if not q or q in b["id"].lower() or q in b["name"].lower()]
-    print(f"\nIn the AMD library ({tools_root}): {len(boards)} boards, {len(plats)} Vitis platforms"
-          + (f"; matching '{args.search}':" if q else ":"))
-    for b in shown:
-        print(f"  {b['id']:42} {b['name'][:45]:45} {b['part'] or '(no part: a carrier or add-on)'}")
-    for p in plats:
-        if not q or q in p["id"].lower():
-            print(f"  platform  {p['id']}")
-    if args.save:
-        b = next((x for x in boards if x["id"] == args.save or x["id"].endswith(":" + args.save)), None)
-        if not b:
-            sys.exit(f"no board '{args.save}' in the library")
-        name = args.as_name or b["id"].split(":", 1)[1]
-        print(f"\nsaved: {targets.save(name, [b['id']], b['name'], ROOT)}")
+    if args.board:
+        try:
+            t = targets.resolve(args.board, tools_root)
+        except LookupError as e:
+            sys.exit(str(e))
+        print(f"{t['name']}\n  part     {t['part']}  ({targets.family_name(t['family'])})\n"
+              f"  boards   {', '.join(t['boards'])}\n\nMemory:")
+        for m in t["memory"]:
+            size = f"{m['bytes'] / 2**30:.0f} GB, " if m.get("bytes") else ""
+            print(f"  {m['type']:10} {size}{m.get('bus_bits') or '?'}-bit {m.get('speed') or ''}  on the {m['where']}")
+        print("\nPeripherals in the processing system (hard IP):")
+        print("  " + (", ".join(t["ps_peripherals"]) or "--"))
+        print("\nInterfaces on fabric pins:")
+        for f in t["fabric_io"]:
+            print(f"  {f['name']:22} {f['type']:18} ({f['board']})")
+        return 0
+    if not args.family:
+        print(f"Families Vitis has installed ({tools_root}): {len(fams)}, "
+              f"{sum(len(f['devices']) for f in fams)} devices, {len(brds)} boards, "
+              f"{len(targets.platforms(tools_root))} platforms\n")
+        for f in fams:
+            nb = sum(1 for b in brds if b["family"] == f["code"])
+            if not q or q in f["name"].lower() or q in f["code"].lower():
+                print(f"  {f['code']:24} {f['name']:42} {len(f['devices']):3} devices  {nb:2} boards")
+        print("\nthen: --family <code> to list its FPGAs, --board <name> for a board's I/O and memory")
+        return 0
+    fam = next((f for f in fams if f["code"] == args.family), None)
+    if not fam:
+        sys.exit(f"no family '{args.family}' in Vitis's installed devices")
+    print(f"{fam['name']} ({fam['code']})\n\nBoards (each fixes the exact part):")
+    for b in brds:
+        if b["family"] == fam["code"] and (not q or q in b["id"].lower() or q in b["name"].lower()):
+            print(f"  {b['id']:40} {b['name'][:44]:44} {b['part']}")
+    print("\nDevices (give device-package-speed):")
+    for d in fam["devices"]:
+        if not q or q in d.lower():
+            print(f"  {d:16} packages: {', '.join(targets.packages(d, tools_root)) or '--'}")
     return 0
 
 
@@ -269,10 +285,10 @@ def cmd_selftest(args, cfg) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
-    t = sub.add_parser("targets", help="list targets: FPGAs/ and the installed AMD library")
-    t.add_argument("--search", help="only library entries matching this")
-    t.add_argument("--save", metavar="BOARD", help="save a library board as a target in FPGAs/")
-    t.add_argument("--as", dest="as_name", help="the FPGAs/ folder name to save it as")
+    t = sub.add_parser("targets", help="families, boards and devices, from the Vitis installation")
+    t.add_argument("--family", help="list this family's boards and devices")
+    t.add_argument("--board", help="a board's part, memory and I/O, with its companion boards")
+    t.add_argument("--search", help="only entries matching this")
     for name in ("check", "run", "selftest"):
         p = sub.add_parser(name)
         p.add_argument("--target")

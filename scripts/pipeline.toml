@@ -16,11 +16,11 @@ root = "Z:/FPGA/2026.1"
 root = "Tools/Verification/DoomV"
 exe = "riscv_doom.exe"
 
-# Targets come from FPGAs/ (saved targets) and from the boards and platforms
-# installed with the AMD tools; `pipeline.py targets` lists them. A target
-# only names its platform specification; the part is read from it.
+# Targets are read from the Vitis installation: a board from the AMD board
+# store (which fixes the part), or a full part (device-package-speed).
+# `pipeline.py targets` lists families, boards and devices.
 [defaults]
-target = "kv260"
+target = "kv260_som"
 clock_mhz = 100   # a configuration choice, not a property of the board
 
 # HLS components. Each has a directory holding an hls_config.cfg (without part

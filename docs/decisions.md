@@ -16,9 +16,11 @@ then Vivado and writes the bitstream, with live progress bars. Every build
 goes to `build/<FPGA-name>-<date-time>/`, with folders for the Vitis files,
 the Vivado files, the XDCs and the rest, and the bitstream in `bitstreams/`.
 
-**Targets are picked from the Vivado/Vitis library.** Any board or platform
-installed with the pinned tools can be the target; picked ones are saved in
-`FPGAs/`, each a pointer to its platform specification.
+**Targets are read from Vitis, not kept in the repository.** No `FPGAs/`
+folder: the program reads the families, devices, boards, memory and I/O from
+the pinned Vitis installation and asks the user -- which family, which FPGA
+(board or device), and so on (docs/ouroboros-flow.md). Supersedes the
+`FPGAs/` folder of the flow as first written.
 
 **Ouroboros aims to use 100% its own IP.** All logic is Ouroboros's HLS. The
 silicon itself -- the PS, clock managers, I/O primitives, transceivers, hard

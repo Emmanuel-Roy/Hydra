@@ -13,7 +13,7 @@ rich text, a live task list, progress bars, the current step always visible.
 | step | what happens | what you see |
 |---|---|---|
 | **1. Model** | Ouroboros looks in `gguf/` for `.gguf` files. One: it is proposed. Several: you pick. None: it asks you to open one. It reads only the header -- architecture, dimensions, context length, the quantization type of every tensor -- not the weights. | the model's name, size, parameter count, quantization mix, context length |
-| **2. Target** | Ouroboros lists the targets saved in `FPGAs/` and, below them, every board and platform in the library installed with Vivado and Vitis (the pinned 2026.1 has 45 boards and 8 Vitis platforms), searchable. Picking one from the library saves it to `FPGAs/`. If the board is attached and identifiable, it is preselected. | each target's part, resources (LUT, FF, DSP, BRAM, URAM), memory and bandwidth, and its interfaces |
+| **2. Target** | Read from the Vitis installation, never from the repository. Ouroboros asks **which family** (Vitis's installed devices: the pinned 2026.1 has 59 families, 302 devices), then **which FPGA**: a board from the AMD board store (45 boards; it fixes the exact part, and its companion boards -- a Kria SOM's carrier -- come with it) or a bare device, then its package and speed grade. If the board is attached and identifiable, it is preselected. | the part and family; the **memory** (type, width, speed, size -- the KV260: 4 GB DDR4-2400, 64-bit, on the processing system); the **I/O**: processing-system peripherals the board's presets enable (USB, DisplayPort, Ethernet, SD, UART, QSPI...) and interfaces on fabric pins (cameras, GPIO, I2S...); resources |
 | **3. Recommendation** | From the model and the target, Ouroboros computes a recommended configuration: core profile, vector width, accelerator size and datatypes (built around the `.gguf`'s quantization), KV cache and context, I/O, clocks. | the configuration, why each choice was made, and its estimates: resources with headroom, decode and prefill tokens/s, memory left for Linux, build time |
 | **4. Configuration** | Ouroboros walks you through the choices: the questions always asked (faster CPU or faster array, RVA23 or less, wide vector unit, big KV cache, many PEs, decode or prefill, which I/O, rebuild Linux/OpenSBI or not), then, if you want them, the expanded and full selections. Every change re-runs the estimates and the compatibility checks at once; an impossible combination says why. | the recommended value and yours, side by side; estimates updating live |
 | **5. Plan** | Before anything long starts: what will be built, what changed from the recommendation, the estimates, and how long the build should take. You confirm. The configuration is saved, so the same build can be re-run without the questions. | a summary to accept, edit or cancel |
@@ -23,24 +23,23 @@ rich text, a live task list, progress bars, the current step always visible.
 
 ## Where things go
 
-### `FPGAs/` -- the targets
+### Targets: from Vitis, not from the repository
 
-The targets you have used, one folder each; any board or platform in the
-Vivado/Vitis library can be picked and is saved here when it is. A target folder holds the target's **platform
-specification** as Vivado and Vitis provide it, or a pointer to it -- never
-hand-written board code (decisions, 2026-09-30):
+There is no folder of targets. Everything about a target is read from the
+pinned Vitis installation each time (decisions, 2026-10-01):
 
-```
-FPGAs/
-  kv260/
-    target.toml        which board-store entries (the KV260's kv260_som and
-                       kv260_carrier ship with Vivado), or which exported
-                       hardware platform (.xsa), describe this target
-```
+| question | read from |
+|---|---|
+| family | `Vitis/data/installed.devices` |
+| device, package | the same, and Vitis's part data (`Vitis/data/parts`) |
+| board | the AMD board store shipped with the tools: `board.xml` (part, fabric interfaces, connectors) and the processing-system presets |
+| memory | the board's processing-system preset (DDR type, width, speed, device size) or its DDR interfaces on fabric pins |
+| I/O | the presets' enabled peripherals, and the board's `<interface>` entries |
+| Vitis platform | `Vitis/base_platforms` |
 
-Ouroboros reads everything else -- part, resources, interfaces, memory, clocks --
-from that specification. Adding a target is adding a folder that names its
-platform.
+`python scripts/pipeline.py targets` shows the same answers on the command
+line: the families; `--family <code>` for a family's boards and devices;
+`--board <name>` for a board's part, memory and I/O.
 
 ### `build/` -- every build
 
