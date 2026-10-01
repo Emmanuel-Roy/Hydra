@@ -24,6 +24,11 @@ repository structure only, until the owner says otherwise.
   that board's folder.
 - **One hart, RVA23S64.** Simple pipeline, stalls for hazards. V with
   VLEN=128 and a configurable datapath width.
+- **All hardware is C++ HLS.** The core, the accelerator and everything else
+  in the FPGA are written in C++ for Vitis HLS, and the RTL is what Vitis and
+  Vivado generate from it. No hand-written Verilog/VHDL/SystemVerilog, and no
+  other HDL. Where HLS makes something hard (pipeline control, variable-latency
+  memory), the answer is an HLS coding pattern, not a drop to RTL.
 
 ## Verification
 
