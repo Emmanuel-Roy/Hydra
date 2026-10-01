@@ -5,6 +5,16 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**Sail and DoomV use the Vitis simulation clock.** In lock-step, the
+references take their clock from the simulation the core runs in: each
+retirement carries the core's cycle count, and DoomV and Sail derive `mtime`
+and `mcycle` from it instead of from their own instruction-counted clock (one
+tick per two instructions). Time, counter reads and timer interrupts are then
+compared strictly, like everything else. Refines the entry below, which had
+made clock-decided values the core's to report. For Sail this changes how its
+C emulator is driven, not the model; it is an exception, for Ouroboros, to
+DoomV's rule of running Sail with its configuration unmodified.
+
 **The core's clock is the FPGA's clock, in every mode.** Vitis software
 emulation, hardware emulation and the physical FPGA all run the core on the
 same clock definition: `mcycle` counts the core's clock cycles, `mtime` is

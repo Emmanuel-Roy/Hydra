@@ -76,21 +76,30 @@ platform's clock frequency. Since the core's pipeline is one loop iteration
 per clock cycle ([hls-coding-standard.md](hls-coding-standard.md)), even
 software emulation counts real cycles.
 
-DoomV follows Sail's clock instead (one `mtime` tick per two instructions),
-so the two disagree on what the clock decides, by design. Ouroboros's
-lock-step is therefore **strict on everything except clock-decided values**:
-counter and time reads, pending timer interrupts, and where interrupts are
-taken come from the core's record, checked for being enabled there; every
-other register, CSR, store and trap is compared strictly. That is DoomV's
-lenient mode, restricted to the clock -- device loads are compared too
-wherever the device is modelled on both sides.
+**The references use the same clock** (decisions, 2026-10-01). Each
+retirement record carries the core's cycle count, and in lock-step DoomV and
+Sail take their clock from it: before stepping, they set `mtime` and `mcycle`
+to what the core's clock gives at that instruction, instead of advancing
+their own instruction-counted clock (one tick per two instructions). Time and
+counter reads then match by construction, and a timer interrupt becomes
+pending in DoomV at the cycle it does in the core -- so **lock-step is
+strict**: DoomV decides when the interrupt is taken and checks that the core
+took it at the same instruction, rather than taking the core's word for it.
+Device loads are compared too wherever the device is modelled on both sides;
+where it is not, they are the one thing taken from the core's record.
 
 **Where the modes can differ.** The cycle count of a run depends on memory
 timing. Software and hardware emulation see the latencies their memory
 models give; the physical board sees the PS DDR controller's, which can vary
 between runs. So the same program can take a timer interrupt at a different
-instruction on the board than in emulation. Each run is still reproducible:
-the clock-decided values are logged (below) and DoomV replays them.
+instruction on the board than in emulation. That is not a mismatch: each run
+is checked against DoomV driven by that run's own cycle stamps, logged on the
+board (below) and replayed.
+
+**Sail on the same clock.** Sail's C emulator advances its clock itself, by
+`instructions_per_tick`. Driving it from the core's cycle stamps changes how
+the emulator is run -- its clock source -- not the model. For DoomV this is a
+new clock mode; DoomV's own Sail lock-step keeps Sail's clock.
 
 ## Three levels, one record
 
@@ -135,6 +144,7 @@ need more:
 
 | need | for | status |
 |---|---|---|
+| a cycle stamp per record, and a clock mode driven by it | strict lock-step on the core's clock | to build, in DoomV and in Sail's emulator harness |
 | Sail-format trace reader, strict and lenient | RTL level | **exists** |
 | snapshots | common starting points | **exists** |
 | an in-process API: reset or restore, then compare one record at a time | C simulation at full speed (no text, no file) | to build |
@@ -149,8 +159,10 @@ These are DoomV changes, made in the DoomV repository and pinned here.
 - Whether the board's memory latency can be made run-to-run constant (for
   example a fixed-latency adapter), which would make board runs repeat
   cycle-for-cycle and not only replayably.
-- A DoomV mode that is lenient on clock-decided values only, rather than on
-  devices and pending-interrupt state as well.
+- The cycle stamp's place in Sail's trace format: an extra line per record,
+  which DoomV and Sail's harness both read and write.
+- Whether the WFI wait (Sail's `max_time_to_wait`) also follows the core's
+  clock, so a wait ends at the cycle the core's does.
 - The record's binary form inside the core and on the trace stream (the
   rendering to Sail text happens outside the hardware).
 - Vector register writes are 128 bits each; whether the stream carries whole
