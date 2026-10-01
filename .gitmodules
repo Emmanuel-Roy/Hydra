@@ -1,0 +1,23 @@
+[submodule "Tools/Verification/DoomV"]
+	path = Tools/Verification/DoomV
+	url = https://github.com/Emmanuel-Roy/DoomV.git
+[submodule "Tools/Verification/suites/riscv-formal"]
+	path = Tools/Verification/suites/riscv-formal
+	url = https://github.com/YosysHQ/riscv-formal.git
+	shallow = true
+[submodule "Tools/Verification/suites/riscv-dv"]
+	path = Tools/Verification/suites/riscv-dv
+	url = https://github.com/chipsalliance/riscv-dv.git
+	shallow = true
+[submodule "Tools/Verification/suites/riscv-tests"]
+	path = Tools/Verification/suites/riscv-tests
+	url = https://github.com/riscv-software-src/riscv-tests.git
+	shallow = true
+[submodule "Tools/Verification/suites/riscv-vector-tests"]
+	path = Tools/Verification/suites/riscv-vector-tests
+	url = https://github.com/chipsalliance/riscv-vector-tests.git
+	shallow = true
+[submodule "Source/third_party/llama.cpp"]
+	path = Source/third_party/llama.cpp
+	url = https://github.com/ggml-org/llama.cpp.git
+	shallow = true
