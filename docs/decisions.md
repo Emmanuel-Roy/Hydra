@@ -5,6 +5,13 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**Ouroboros aims to use 100% its own IP.** All logic is Ouroboros's HLS. The
+silicon itself -- the PS, clock managers, I/O primitives, transceivers, hard
+blocks -- is reached through the thinnest generated wrapper, with no vendor
+logic around it. Vendor soft IP is allowed only as a listed stopgap with its
+replacement planned (today only MIG, for DDR on boards without a PS); licensed
+IP is never used. Answers the two questions `io-catalog.md` had left open.
+
 **A variety of I/O to build around, for any FPGA.** Ouroboros supports a broad
 catalogue of interface types, organised by what drives them, so the generator
 finds support for most of what any board offers

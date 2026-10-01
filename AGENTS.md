@@ -34,6 +34,12 @@ repository structure only, until the owner says otherwise.
   memory), the answer is an HLS coding pattern, not a drop to RTL.
   Test benches are not hardware: riscv-formal's SystemVerilog wrapper is
   allowed for testing, and only for testing.
+- **100% Ouroboros's own IP.** All logic in the FPGA is Ouroboros's HLS.
+  Silicon primitives (the PS, clock managers, I/O SERDES and DDR registers,
+  transceivers, hard blocks) are reached through the thinnest generated
+  wrapper, with no vendor logic around them. Vendor soft IP only as a listed
+  stopgap with its replacement planned; licensed IP never
+  ([docs/io-catalog.md](docs/io-catalog.md)).
 
 ## Verification
 
