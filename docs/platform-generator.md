@@ -43,12 +43,55 @@ kind.
    bitstream and park; a generated BIF; `bootgen` to BOOT.BIN. **[verify]**
    whether the PMU firmware can be left out, and how BOOT.BIN is written to
    the KV260's QSPI past its stock A/B image selector.
-6. **Device tree and firmware platform** for the RISC-V: memory, the uncore,
+6. **Display output.** The generator finds the board's display connectors in
+   its board files -- on the KV260, an HDMI output -- and follows each to what
+   drives it. It generates the path for that driver, by IP type, never by
+   board name (see "Interfaces the generator discovers" below).
+7. **Device tree and firmware platform** for the RISC-V: memory, the uncore,
    and the board's devices the core can reach, derived from the system device
    tree and the address map.
-7. **Resource and timing reports** after each stage, parsed into one summary
+8. **Resource and timing reports** after each stage, parsed into one summary
    (HLS `csynth.xml`, Vivado post-synthesis and post-route utilization and
    timing).
+
+## Interfaces the generator discovers
+
+The platform specification lists the board's interfaces and what each is
+wired to. For every interface the system uses, the generator picks the
+implementation for **the IP that drives it** -- an IP type the project
+supports once, used by every board that has it. Supporting a new board's
+interface means supporting its IP type, never writing code for the board.
+
+**Display: the KV260's HDMI output.** On the KV260, the HDMI connector is not
+wired to the fabric. It is driven by the PS's DisplayPort controller, through
+a DisplayPort-to-HDMI converter on the carrier (research: `kv260_platform.md`).
+So the generator, seeing an HDMI output driven by a Zynq UltraScale+ PS
+DisplayPort controller, generates:
+
+- **PS configuration** that enables the DisplayPort controller and its
+  live-video input from the fabric (in the generated block design);
+- **an HLS display engine** -- part of the uncore, the same C++ on every board
+  -- that scans the framebuffer out of memory through a memory port and
+  streams pixels with video timing to the board's video output; on the KV260,
+  into the DisplayPort controller's live-video input. The timing (resolution,
+  pixel clock) comes from the platform description, with the pixel clock
+  from the PS's fabric clocks;
+- **the controller's set-up on the RISC-V**: the DisplayPort controller's
+  registers and link training, run by the RISC-V's firmware before Linux
+  (never by the ARM cores), selected for this controller type;
+- **a device-tree node** handing Linux a simple framebuffer at the address the
+  display engine scans.
+
+A board whose HDMI is driven from the fabric instead (an HDMI transmitter on
+fabric pins, or a fabric-driven encoder chip) gets the same display engine
+feeding that output's IP. The display engine is the board-agnostic part; what
+it feeds is the generated part.
+
+**[verify, Phase 2]** The PS DisplayPort controller's live-video input fed from
+the fabric while no ARM software runs: documented for AMD's bare-metal
+drivers; not yet shown with the set-up done by a soft core. Also whether the
+carrier's converter needs configuring, and the pixel clocks the PS can give
+(65 MHz for 1024x768, 74.25 MHz for 720p, 148.5 MHz for 1080p).
 
 ## Tool flow
 

@@ -5,6 +5,14 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**The generator discovers the display and drives it.** It must see from the
+platform specification that the KV260 has an HDMI output, generate the code
+for it, and the system outputs through it. Since the KV260's HDMI is driven
+by the PS DisplayPort controller, the generated path is: PS configuration for
+that controller's fabric video input, the uncore's HLS display engine
+feeding it, and the controller's set-up run on the RISC-V
+([platform-generator.md](platform-generator.md)).
+
 **Sail and DoomV use the Vitis simulation clock.** In lock-step, the
 references take their clock from the simulation the core runs in: each
 retirement carries the core's cycle count, and DoomV and Sail derive `mtime`

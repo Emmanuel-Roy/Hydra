@@ -24,6 +24,7 @@ core is the same C++ on every target, and only generated files differ.
 | **MMIO window** | out | the same request/response shape | a physical address range for devices; uncached, strictly ordered |
 | **interrupt lines** | in | level, one per source | external interrupts into the interrupt controller; the timer is inside the contract's own uncore |
 | **clock and reset** | in | one clock per domain | the core's domain and the accelerator's may differ; the board side provides and crosses them |
+| **video stream** | out | pixels with video timing, from the uncore's display engine | the board side carries it to the display output the generator found (on the KV260, the PS DisplayPort controller's live-video input, which feeds the HDMI connector) |
 | **trace stream** | out | stream of retirement records | for lock-step: full records in simulation, hashes and the value log on the board ([lockstep.md](lockstep.md)) |
 | **platform description** | build-time input | generated header | memory windows, port count and width, clock frequencies, interrupt numbering -- template parameters, never constants in the core |
 
@@ -64,7 +65,10 @@ An "uncore" common to every board, in HLS like everything else: the timer
 (ACLINT `mtime`/`mtimecmp`, counting from the core's own clock -- the FPGA's
 clock in every mode, see [lockstep.md](lockstep.md)), the interrupt controller (PLIC, or APLIC/IMSIC as
 RVA23 platforms use), a UART for the console, and the bridge that splits the
-core's traffic between memory ports and the MMIO window. These are part of the
+core's traffic between memory ports and the MMIO window, and the display engine
+that scans a framebuffer out of memory onto the video stream
+([platform-generator.md](platform-generator.md), "Interfaces the generator
+discovers"). These are part of the
 machine Linux sees, so they are the same on every board.
 
 ## Open
