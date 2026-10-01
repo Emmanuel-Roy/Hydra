@@ -5,6 +5,8 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-09-30
 
+**riscv-formal's SystemVerilog wrapper is allowed, for testing only.** It checks the core's retirement port and is never part of the hardware; the all-HLS rule covers everything that is.
+
 **Stock KV260 carrier board, no custom carrier.** Overrides the feasibility
 report's recommendation of a custom K26 carrier as the long-term route for
 peripherals and the laptop build ("Off-the-shelf parts make a $460-650
@@ -32,9 +34,3 @@ otherwise.
 
 **The KV260 is the first target, and everything must be as portable as
 possible.**
-
-## Open
-
-- **riscv-formal.** It checks the core's retirement port through a
-  SystemVerilog wrapper. The report reads that wrapper as test bench, not
-  hardware, and so allowed under the all-HLS rule. Not yet confirmed.

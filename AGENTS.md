@@ -32,6 +32,8 @@ repository structure only, until the owner says otherwise.
   Vivado generate from it. No hand-written Verilog/VHDL/SystemVerilog, and no
   other HDL. Where HLS makes something hard (pipeline control, variable-latency
   memory), the answer is an HLS coding pattern, not a drop to RTL.
+  Test benches are not hardware: riscv-formal's SystemVerilog wrapper is
+  allowed for testing, and only for testing.
 
 ## Verification
 
