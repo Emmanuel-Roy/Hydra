@@ -1,0 +1,224 @@
+# The configurator
+
+Status: **draft for review** (Phase 0). The options Ouroboros offers in step 4
+of its flow ([ouroboros-flow.md](ouroboros-flow.md)), taken from the research
+report [`agentic/reports/Ouroboros configurator options.md`](../agentic/reports/Ouroboros%20configurator%20options.md)
+and amended by every decision since ([decisions.md](decisions.md)).
+
+## Principles
+
+- **Recommended for the `.gguf` and the target.** Nearly every default is
+  computed from the model's header and the target's platform specification, in
+  a fixed order: platform and I/O costs first, then the core, then the decode
+  floor, then prefill from what is left, then context and KV cache.
+- **Everything adjustable, if the user wishes.** Every lever below can be
+  changed; only the fixed project rules (top table) are not offered as
+  settings. An override is checked by the constraint model, and an impossible
+  combination says why.
+- **Three tiers, one configuration.** **A** = asked every time. **E** =
+  expanded view: every lever with its trade-off in a line, grouped by
+  subsystem. **F** = full view, searchable. They are three views of one flat
+  configuration, not nested menus.
+- **Estimates before building.** Every change re-runs the estimates --
+  resources with headroom, decode and prefill tokens/s, memory left for Linux,
+  build time. Estimates are replaced by measured costs as the pipeline produces
+  them.
+
+## Always-asked questions
+
+Asked in this order. Each opens with the recommendation selected; Enter
+accepts it.
+
+| # | Question | Choices | Recommended | Sets |
+|---|---|---|---|---|
+| 0a | Which model? | `.gguf` files in `gguf/`, or a path | the only file, else ask | every model-derived lever |
+| 0b | Which family? | the families Vitis has installed | the attached board's family, else the default target's | the device and board lists |
+| 0c | Which FPGA? | the family's boards (each fixes the part) and devices (then package and speed grade) | the attached, identified board; else the default target | every platform-derived lever: resources, memory, I/O |
+| 1 | Which I/O do you want? | every interface the target shows, each on or off, with its LUT, memory-port and bandwidth cost | a laptop set: display, USB, SD, Ethernet on; cameras, Pmod, GPIO off | IO-* |
+| 2 | Is RVA23 good, or do you want less? | RVA23S64 / RVA22S64 / RV64GC (RVA20), with which distributions each runs | RVA23S64 | ISA-1, SW-2 |
+| 3 | Wide vector unit or not? | 32 / 64 / 128-bit datapath (VLEN 128) | the widest that leaves the decode floor plus 15% LUT headroom; KV260: 32 | CORE-1 |
+| 4 | Faster CPU or faster systolic array? | Linux-first / Balanced / LLM-first | Balanced; LLM-first for models of 1B parameters and up when LUTs are tight | CORE-3..10, ACC-11 |
+| 5 | Big KV cache or not? | context length and the K and V types | from the model: its context limit capped by memory and speed; K/V types from its precision (KV-*) | KV-1..3 |
+| 6 | Decode or prefill? | Chat / Balanced / Long prompts, or 0-100 | Chat; Balanced when DSPs are spare beyond the decode floor | ACC-7, ACC-9, ACC-10 |
+| 7 | Lots of PE units or not? | decode floor only / moderate / fill, and any share for other datatypes | moderate, all for the model's own types; "past this point PEs do not raise decode" shown | ACC-8, ACC-17, PLAT-4 |
+| 8 | Rebuild OpenSBI/Linux for this configuration, or have you already? | build for me / reuse the last build / my images | build; reuse preselected when only device-tree-level changes since the last build | SW-1 |
+
+## Fixed by project rules
+
+Shown read-only; not settings.
+
+| ID | Item | Value |
+|---|---|---|
+| FX-1 | Harts | 1 |
+| FX-2 | VLEN | 128 bits |
+| FX-3 | Hardware language | C++ for Vitis HLS only (riscv-formal's wrapper for testing only) |
+| FX-4 | IP | Ouroboros's own; vendor soft IP only as a listed stopgap; licensed IP never |
+| FX-5 | Tools | the pinned Vivado/Vitis release (2026.1) |
+| FX-6 | Hard ARM cores | a generated FSBL only, then parked |
+| FX-7 | Core clock | the FPGA's clock in every mode; DoomV and Sail driven by the core's cycle stamps |
+| FX-8 | Always generated | fan PWM, clocks and reset, the uncore (timer, interrupt controller, UART, bridge) |
+| FX-9 | Datatypes | every GGUF datatype can be built, in hardware; none falls back to the CPU |
+| FX-10 | Accuracy | every datapath bit-exact with ggml; strict lock-step with DoomV |
+
+## Option catalogue
+
+### Inputs and platform
+
+| ID | Lever | Tier | Options | Recommended | Depends on |
+|---|---|---|---|---|---|
+| PLAT-1 | Target | A | Vitis's families, boards and devices | attached board, else default | supplies every budget |
+| PLAT-2 | Model | A | a `.gguf` | the only one, else ask | header only |
+| PLAT-3 | Start from a preset | E | the golden configurations for this target | "Recommended for this model" | presets are the always-tested set |
+| PLAT-4 | Utilization ceiling | E (set by Q7) | 60-90% per resource | LUT 85% hard, warn at 80%; others 90% | caps ACC-8 |
+| PLAT-5 | DDR efficiency for estimates | F | 0.5-0.95 | 0.7 until measured | every tokens/s estimate |
+| PLAT-6 | Allow listed stopgap IP | F | yes / no | yes, reported | only where a stopgap exists (MIG) |
+
+### I/O -- one row per interface the target shows
+
+Generated from what the target's board files and presets list
+([io-catalog.md](io-catalog.md)); the KV260's set as the example.
+
+| ID | Lever | Tier | Options | Recommended | Depends on |
+|---|---|---|---|---|---|
+| IO-1 | Display output, per connector | A | on / off | on (first connector) | display engine + 1 memory port; KV260: the PS DisplayPort controller, HDMI through its converter |
+| IO-2 | Display mode | E | the resolutions the target's pixel clocks allow | 1080p60 if supported, else highest | bandwidth |
+| IO-3 | Framebuffer depth | F | 16 / 32 bpp | 32 | IO-2 |
+| IO-4 | USB | A | on / off | on | PS glue; interrupts or polling (IO-14) |
+| IO-5 | Ethernet | A | on / off | on | PS glue |
+| IO-6 | SD | A | on / off | on | needed when booting or rooting from SD |
+| IO-7 | QSPI as a Linux device | E | on / off | off | QSPI holds the boot image regardless |
+| IO-8 | Cameras (MIPI CSI-2), per connector | A | on / off | off | LUTs + 1 memory port each |
+| IO-9 | On-board ISP set-up | E | on / off | on iff its camera path is on | IO-8 |
+| IO-10 | Pmod | A | off / GPIO / UART / USB-HID / SPI-SD | off | fabric pins |
+| IO-11 | GPIO, LEDs, I2S, other fabric interfaces | E | on / off each | off | MMIO window |
+| IO-12 | Fan control | E | constant / temperature-controlled | temperature-controlled if IO-13 is on | FX-8 |
+| IO-13 | Temperature and power monitors | E | on / off | on | I2C |
+| IO-14 | PS peripheral interrupts | F | interrupts / polling | interrupts if Phase 2 verifies them, else polling | interrupt controller |
+| IO-15 | Console UART route | F | the board's USB-UART / Pmod | the board's | uncore UART |
+
+**Memory ports are a budget too.** The KV260 has six PS-PL ports into DDR: a
+four-port accelerator, the core and the display take them all, so enabling a
+camera takes a port from the accelerator, shares one, or is refused -- the
+configurator says which.
+
+### ISA
+
+| ID | Lever | Tier | Options | Recommended | Depends on |
+|---|---|---|---|---|---|
+| ISA-1 | Profile | A | RVA23S64 / RVA22S64 / RV64GC | RVA23S64 | RVA23 brings V, H and the rest; the distribution (SW-2); DoomV and Sail configured to match |
+| ISA-2 | Zacas, Zabha | E | on / off | on if LUT headroom remains | A |
+| ISA-3 | Zicfilp, Zicfiss | E | on / off | off | Zicfiss needs A and Zimop |
+| ISA-4 | Interrupt controller | F | PLIC / AIA | whichever DoomV's strict platform models (open) | strict lock-step |
+| ISA-5 | Zfh, Zvfh | E | on / off | off on the KV260; on with headroom | Zvfh needs Zvfhmin, Zfhmin, V |
+| ISA-6 | Zfbfmin, Zvfbfmin, Zvfbfwma | E | on / off | off on the KV260 | F, V |
+| ISA-7 | Ziccamoc, Zama16b | F | on / off | on if the atomics path supports them | A |
+| ISA-8 | Zbc, Zvbc | F | on / off | off | Zvbc needs V |
+| ISA-9 | Zvkng, Zvksg | F | on / off | off | V; large LUT cost |
+| ISA-10 | Zkr | F | on / off | off | an on-chip entropy source |
+| ISA-11 | Sv48, Sv57 | F | on / off | off | with H, Sv48x4 / Sv57x4 |
+| ISA-12 | Svadu, Sdtrig, Ssstrict, Svvptc, Sspm | F | each on / off | off | Svadu: the walker writes A/D |
+| ISA-13 | Emulate in M-mode where allowed | F | per item | hardware | a custom OpenSBI |
+
+Every ISA option is offered only once DoomV and Sail can be configured to the
+same machine, because strict lock-step needs both sides alike.
+
+### Core microarchitecture
+
+| ID | Lever | Tier | Options | Recommended | Depends on |
+|---|---|---|---|---|---|
+| CORE-1 | Vector datapath width | A | 32 / 64 / 128 | see Q3 | V |
+| CORE-2 | Core clock | E | the target's clock choices | the highest the estimator closes timing at | FX-7; device-tree timebase |
+| CORE-3 | Scalar FPU | E | pipelined FMA / shared with vector / iterative | shared on the KV260 | V needs D |
+| CORE-4 | FP divide and square root | F | radix-2 / radix-4 | radix-2 | -- |
+| CORE-5 | Multiplier, divider | E | single-cycle DSP / pipelined / iterative | pipelined; radix-2 | DSPs |
+| CORE-6 | Vector slow paths (div/sqrt, permutes, indexed and segment, reductions, widening) | F | fast / serial, per class | serial | LUTs |
+| CORE-7 | Branch prediction | E | none / static / BHT+BTB / +RAS / +gshare; sizes in F | BHT 128, BTB 32, RAS 2 | RAS and gshare need a BTB |
+| CORE-8 | L1 caches | E | 4-64 KiB each; ways, line, write policy in F | 16 KiB / 16 KiB | BRAM |
+| CORE-9 | L2 | E | none / 64-512 KiB in URAM | none on the KV260 | URAM shared with the accelerator |
+| CORE-10 | TLBs | F | 4-64 entries each; an L2 TLB; G-stage TLB | 16 / 16 | H: two-stage walk |
+| CORE-11 | PMP entries | F | 0 / 8 / 16 / 64 | 8 | OpenSBI's need |
+| CORE-12 | Performance counters | F | 0-29 | 4 | Sscofpmf |
+| CORE-13 | Pipeline depth | F | 3-7 | from the clock target | Fmax against stalls |
+| CORE-14 | Physical address width | F | 32-56 | the smallest covering memory and MMIO | device tree |
+| CORE-15 | Misaligned accesses | F | hardware / trap to SBI | hardware (Sail's split) | trap needs a custom OpenSBI |
+| CORE-16 | Board trace hash interval | F | 2^10-2^24 | 2^16 | lockstep.md |
+
+### Accelerator
+
+| ID | Lever | Tier | Options | Recommended | Depends on |
+|---|---|---|---|---|---|
+| ACC-1 | Weight datatypes and their PEs | E | the model's types / plus others / all 35 | exactly the types in the `.gguf`'s tensors, the datapath shaped around their byte mix ([gguf-datatypes.md](gguf-datatypes.md)) | each type needs its family's unpacker |
+| ACC-2 | Activation precision | E | INT8 / FP16 / the model's float format | INT8 for quantised models (llama.cpp's Q8 activations); the model's own format for F16/BF16/F32 models | multiplier widths |
+| ACC-4 | Decode lanes | F | 16-256 | `ceil(eta * BW / (bits_per_weight * f))`, to a power of two | beyond it decode does not improve |
+| ACC-5 | Decode MACs in DSPs or LUTs | F | DSP-packed / LUT | DSP-packed for the model's widths; LUT when LUT headroom is large | prefill always DSP |
+| ACC-6 | Memory ports | F | 1 to the target's maximum | 4, +2 when attention is offloaded, capped by the free ports | I/O and the core take ports first |
+| ACC-7 | Engine topology | E | GEMV only / GEMV + array / reconfigurable / swapped by partial reconfiguration | from Q6 | partial reconfiguration unproven here |
+| ACC-8 | Prefill array size and shape | A (Q7) / F (rows x cols) | 0 to the DSPs left | fill to the ceiling Q7 sets | DSP and LUT budget |
+| ACC-9 | Prefill emphasis | A (Q6) | 0-100 | 15 | ACC-7, ACC-10 |
+| ACC-10 | Token tile | F | 8-512 | `next_pow2(max(T_min, p * T_max))` | activation buffer; llama.cpp ubatch |
+| ACC-11 | Offload level | E | MUL_MAT only / + norm, RoPE, SiLU / + attention and KV append / fused layers / + output head and sampling | fused layers; + sampling when it costs over 20% of a token | rises as the CPU tier falls |
+| ACC-12 | Attention engines | F | 1 to the KV head count | 1 decode-first; 2 for prefill emphasis 50+ | grouped-query ratio |
+| ACC-13 | Accumulator format | F | 24-bit block + FP32 / fixed 32 | FP32 across blocks | `feed_forward_length` |
+| ACC-14 | On-chip buffers | F | URAM/BRAM split | URAM for activations and accumulators; at least 20% left for the core's caches | CORE-8, CORE-9 |
+| ACC-15 | Accelerator clock | E | 150-300 MHz | 250 | its own clock domain |
+| ACC-16 | Mixture-of-experts router | F | on / off | on iff `expert_count` > 0 | the experts' types |
+| ACC-17 | LUTs for PEs of other datatypes | E | a share of the accelerator budget per added datatype | none: all to the supplied model | costs the model prefill speed; shown |
+
+### KV cache and memory
+
+Recommended from the supplied `.gguf`, adjustable like the PEs
+([gguf-datatypes.md](gguf-datatypes.md)).
+
+| ID | Lever | Tier | Options | Recommended | Depends on |
+|---|---|---|---|---|---|
+| KV-1 | Context length | A (Q5) | 256-token steps up to the model's `context_length` | min(the model's limit, what fits in DDR, a speed cap) | KV bytes per token from the model's attention shape |
+| KV-2 | K type | A (Q5, sub-choice) | F32, F16, BF16, Q8_0, Q4_0, Q4_1, IQ4_NL, Q5_0, Q5_1 | the model's float format for a float model; Q8_0 for a quantised one | the attention hardware for that type |
+| KV-3 | V type | A (Q5, sub-choice) | the same nine | as K | a quantised V needs the flash-style path (KV-4) |
+| KV-4 | Flash-style attention path | F | on / off | on when attention is offloaded or V is quantised | KV-3 |
+| KV-5 | Attention hardware for other KV types | E | a LUT share per added type | none | like ACC-17 |
+| KV-6 | Cache placement | F | DDR / on-chip for the newest tokens, where the target has room | DDR (the KV260's URAM holds only tens of tokens) | URAM |
+| KV-7 | Full sliding-window cache | F | on / off | off | sliding-window models only |
+| MEM-1 | OS memory reserve | E | 0.5-3 GiB | 1.25 GiB until measured | DDR fit |
+| MEM-2 | Accelerator memory carve-out | F | reserved-memory / CMA | reserved-memory for weights, CMA for shared buffers | contiguous weights |
+| MEM-3 | Split DDR windows | F | remap to one range / both in the device tree | both in the device tree | the board contract |
+
+### Software, boot and deployment
+
+| ID | Lever | Tier | Options | Recommended | Depends on |
+|---|---|---|---|---|---|
+| SW-1 | OpenSBI/Linux | A (Q8) | build / reuse the last build / my images | build; reuse when the software-relevant settings are unchanged | user images are validated |
+| SW-2 | Distribution | E | Ubuntu 26.04 / 24.04 / Debian 13 / Fedora / Buildroot | the newest the ISA allows | Ubuntu 25.10+ needs RVA23S64; no FPU needs Buildroot |
+| SW-3 | Boot chain | E | OpenSBI, U-Boot, extlinux / OpenSBI straight to Linux | U-Boot (kernel updates work) | FW_DYNAMIC preferred |
+| SW-4 | Kernel options | F | per symbol | derived from the ISA | checked after `olddefconfig` |
+| SW-5 | Kernel command line | F | console, carve-outs | derived | IO-15, MEM-2 |
+| SW-6 | llama.cpp defaults | F | context, cache types, ubatch | KV-1, KV-2, KV-3, ACC-10 | the ggml backend |
+| BOOT-1 | Boot medium | E | SD / QSPI / JTAG (development) | SD, with QSPI holding the boot image | QSPI writes need a typed confirmation |
+| BOOT-2 | Flash after the build | E | no / yes | no | BOOT-1 |
+
+### Build and verification
+
+| ID | Lever | Tier | Options | Recommended | Depends on |
+|---|---|---|---|---|---|
+| BLD-1 | Verification before the bitstream | E | validate only / + C-sim lock-step / + co-sim / + boot in C-sim | + C-sim lock-step + co-sim of changed components | pipeline stages |
+| BLD-2 | Implementation strategy | E | default / Performance_Explore / sweep | default, sweeping on failure | names checked against 2026.1 |
+| BLD-3 | Fallback policy | E | automatic (non-functional levers only, reported) / ask / never | automatic | order: strategy, PEs, clock, caches and KV, then ask; never the ISA, datatypes, I/O or distribution |
+| BLD-4 | Parallel jobs | F | 1 to the host's cores | half the cores | pipeline `--jobs` |
+| BLD-5 | Stage reuse | F | on / off | on, keyed by the configuration that stage depends on | -- |
+| BLD-6 | Placement exploration | F | directive list | none | Vivado has no true seed |
+| BLD-7 | Model accuracy check | E | off / logits against llama.cpp on fixed prompts | on when datatypes or KV types differ from the recommendation | an `llm-accuracy` stage |
+
+## Keeping every combination buildable
+
+From the report: one constraint model (CP-SAT) holding every rule above, each
+with a message, so an impossible choice is explained; the same model emits the
+HLS parameters, device tree, kernel and OpenSBI configuration, `-march`, and
+DoomV/Sail configuration; a validation ladder before any long build; 5-10
+golden configurations (the presets) always built, cheap samples on every
+commit, pairwise samples nightly; stage reuse keyed by configuration; and
+fallbacks that never change what the user asked for silently.
+
+## Open
+
+- The constraint-model implementation and its rule sources.
+- Measured costs to replace every estimate (Phase 2 on).
+- PLIC or AIA (ISA-4), decided with DoomV's platform.

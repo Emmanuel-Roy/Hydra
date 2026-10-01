@@ -5,6 +5,7 @@ Research and designs will go here.
 | document | decides |
 |---|---|
 | [ouroboros-flow.md](ouroboros-flow.md) | the program's flow, from picking a model and a target to a bitstream, and where its outputs go |
+| [configurator.md](configurator.md) | every option the program offers: the always-asked questions, the three tiers, recommendations from the `.gguf` and target, dependencies |
 | [decisions.md](decisions.md) | the owner's decisions, and where they override the research |
 | [board-contract.md](board-contract.md) | the only things the core and accelerator see of a board: memory-port streams, an MMIO window, interrupts, clocks, a trace stream |
 | [platform-generator.md](platform-generator.md) | how everything board-specific is generated from the Vivado/Vitis platform specification, and what it produces |
