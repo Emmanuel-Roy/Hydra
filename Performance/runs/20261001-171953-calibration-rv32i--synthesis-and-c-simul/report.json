@@ -1,0 +1,53 @@
+{
+  "id": "20261001-171953-calibration-rv32i--synthesis-and-c-simul",
+  "label": "calibration rv32i: synthesis and C simulation",
+  "commit": "1f594c2+",
+  "target": "kv260_som",
+  "tools": "2026.1",
+  "key": "2e4341315bb02d68",
+  "config": {
+    "components": [
+      "calibration-rv32i"
+    ],
+    "component_config": {
+      "calibration-rv32i": {
+        "hls_config": "891abe600a8c8880",
+        "declared": {
+          "kind": "calibration",
+          "cosim": true
+        }
+      }
+    },
+    "stages": [
+      "hls",
+      "csim"
+    ],
+    "target": {
+      "part": "xck26-sfvc784-2LV-c",
+      "clock_mhz": 100
+    },
+    "suites": []
+  },
+  "components": {
+    "calibration-rv32i": {
+      "hls": {
+        "stage": "hls",
+        "status": 1,
+        "seconds": 7.2,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-171953-calibration-rv32i--synthesis-and-c-simul\\logs\\calibration-rv32i\\hls.log",
+        "ok": false,
+        "errors": [
+          "ERROR: [HLS 207-3134] non-integral type 'ap_uint<4>' is an invalid underlying type (Z:/Code/Dev/Ouroboros/Tools/Verification/calibration/rv32i/core.cpp:13:11)",
+          "ERROR: syntax check failed."
+        ],
+        "csynth": null
+      }
+    }
+  },
+  "accuracy": {},
+  "notes": [],
+  "seconds": 8.7,
+  "ok": false,
+  "previous": null,
+  "regressions": []
+}

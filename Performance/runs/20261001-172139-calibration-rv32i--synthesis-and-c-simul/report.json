@@ -1,0 +1,78 @@
+{
+  "id": "20261001-172139-calibration-rv32i--synthesis-and-c-simul",
+  "label": "calibration rv32i: synthesis and C simulation",
+  "commit": "1f594c2+",
+  "target": "kv260_som",
+  "tools": "2026.1",
+  "key": "2e4341315bb02d68",
+  "config": {
+    "components": [
+      "calibration-rv32i"
+    ],
+    "component_config": {
+      "calibration-rv32i": {
+        "hls_config": "891abe600a8c8880",
+        "declared": {
+          "kind": "calibration",
+          "cosim": true
+        }
+      }
+    },
+    "stages": [
+      "hls",
+      "csim"
+    ],
+    "target": {
+      "part": "xck26-sfvc784-2LV-c",
+      "clock_mhz": 100
+    },
+    "suites": []
+  },
+  "components": {
+    "calibration-rv32i": {
+      "hls": {
+        "stage": "hls",
+        "status": 0,
+        "seconds": 30.4,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-172139-calibration-rv32i--synthesis-and-c-simul\\logs\\calibration-rv32i\\hls.log",
+        "ok": true,
+        "csynth": {
+          "report": "Z:\\Code\\Dev\\Ouroboros\\build\\pipeline\\kv260_som\\calibration-rv32i\\work\\hls\\syn\\report\\csynth.xml",
+          "target_clock_ns": 10.0,
+          "estimated_clock_ns": 6.583,
+          "latency_best": null,
+          "latency_worst": null,
+          "interval_min": 1.0,
+          "interval_max": 1.0,
+          "resources": {
+            "FF": 1708.0,
+            "LUT": 4230.0,
+            "BRAM_18K": 0.0,
+            "DSP": 0.0,
+            "URAM": 0.0
+          },
+          "available": {
+            "BRAM_18K": 288.0,
+            "DSP": 1248.0,
+            "FF": 234240.0,
+            "LUT": 117120.0,
+            "URAM": 64.0
+          }
+        }
+      },
+      "csim": {
+        "stage": "csim",
+        "status": 0,
+        "seconds": 9.1,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-172139-calibration-rv32i--synthesis-and-c-simul\\logs\\calibration-rv32i\\csim.log",
+        "ok": true
+      }
+    }
+  },
+  "accuracy": {},
+  "notes": [],
+  "seconds": 41.0,
+  "ok": true,
+  "previous": "20261001-171953-calibration-rv32i--synthesis-and-c-simul",
+  "regressions": []
+}

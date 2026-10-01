@@ -35,6 +35,11 @@ dir = "Tools/Verification/smoke"
 kind = "smoke"
 cosim = true
 
+[components.calibration-rv32i]
+dir = "Tools/Verification/calibration/rv32i"
+kind = "calibration"
+cosim = true
+
 # Test suites for the accuracy stage, as globs under DoomV's root. Each test
 # runs on the device under test, which writes a Sail-format trace, and DoomV
 # lock-steps against that trace, strictly (docs/lockstep.md).

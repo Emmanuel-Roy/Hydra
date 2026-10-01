@@ -1,0 +1,115 @@
+{
+  "id": "20261001-172233-calibration-rv32i--full",
+  "label": "calibration rv32i: full",
+  "commit": "1f594c2+",
+  "target": "kv260_som",
+  "tools": "2026.1",
+  "key": "b1a061b7b4865a77",
+  "config": {
+    "components": [
+      "calibration-rv32i"
+    ],
+    "component_config": {
+      "calibration-rv32i": {
+        "hls_config": "891abe600a8c8880",
+        "declared": {
+          "kind": "calibration",
+          "cosim": true
+        }
+      }
+    },
+    "stages": [
+      "hls",
+      "csim",
+      "cosim",
+      "impl"
+    ],
+    "target": {
+      "part": "xck26-sfvc784-2LV-c",
+      "clock_mhz": 100
+    },
+    "suites": []
+  },
+  "components": {
+    "calibration-rv32i": {
+      "hls": {
+        "stage": "hls",
+        "status": 0,
+        "seconds": 30.3,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-172233-calibration-rv32i--full\\logs\\calibration-rv32i\\hls.log",
+        "ok": true,
+        "csynth": {
+          "report": "Z:\\Code\\Dev\\Ouroboros\\build\\pipeline\\kv260_som\\calibration-rv32i\\work\\hls\\syn\\report\\csynth.xml",
+          "target_clock_ns": 10.0,
+          "estimated_clock_ns": 6.583,
+          "latency_best": null,
+          "latency_worst": null,
+          "interval_min": 1.0,
+          "interval_max": 1.0,
+          "resources": {
+            "FF": 1708.0,
+            "LUT": 4230.0,
+            "BRAM_18K": 0.0,
+            "DSP": 0.0,
+            "URAM": 0.0
+          },
+          "available": {
+            "BRAM_18K": 288.0,
+            "DSP": 1248.0,
+            "FF": 234240.0,
+            "LUT": 117120.0,
+            "URAM": 64.0
+          }
+        }
+      },
+      "csim": {
+        "stage": "csim",
+        "status": 0,
+        "seconds": 5.6,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-172233-calibration-rv32i--full\\logs\\calibration-rv32i\\csim.log",
+        "ok": true
+      },
+      "cosim": {
+        "stage": "cosim",
+        "status": 0,
+        "seconds": 31.0,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-172233-calibration-rv32i--full\\logs\\calibration-rv32i\\cosim.log",
+        "ok": true,
+        "cosim": {
+          "report": "Z:\\Code\\Dev\\Ouroboros\\build\\pipeline\\kv260_som\\calibration-rv32i\\work\\hls\\sim\\report\\core_top_cosim.rpt",
+          "verdict": "pass"
+        }
+      },
+      "impl": {
+        "stage": "impl",
+        "status": 0,
+        "seconds": 288.0,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-172233-calibration-rv32i--full\\logs\\calibration-rv32i\\impl.log",
+        "ok": true,
+        "impl": {
+          "report": "Z:\\Code\\Dev\\Ouroboros\\build\\pipeline\\kv260_som\\calibration-rv32i\\work\\hls\\impl\\report\\verilog\\export_impl.xml",
+          "resources": {
+            "BRAM": 0.0,
+            "CLB": 552.0,
+            "DSP": 0.0,
+            "FF": 1573.0,
+            "LATCH": 0.0,
+            "LUT": 2310.0,
+            "SRL": 0.0,
+            "URAM": 0.0
+          },
+          "target_clock_ns": 10.0,
+          "achieved_clock_ns": 6.511,
+          "fmax_mhz": 153.6,
+          "timing_met": true
+        }
+      }
+    }
+  },
+  "accuracy": {},
+  "notes": [],
+  "seconds": 356.4,
+  "ok": true,
+  "previous": null,
+  "regressions": []
+}
