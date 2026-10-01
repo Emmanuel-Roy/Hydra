@@ -5,6 +5,14 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**Every I/O the platform shows is discovered, and each can be enabled or
+disabled.** Not only the display: USB, Ethernet, SD, QSPI, the cameras (MIPI
+CSI-2, the AP1302 ISP, USB cameras), Pmod and GPIO. The generator produces
+each enabled interface's path from what drives it; a disabled interface
+generates nothing, and its resources go to the systolic array's budget
+([platform-generator.md](platform-generator.md), "Every interface is a
+switch").
+
 **The generator discovers the display and drives it.** It must see from the
 platform specification that the KV260 has an HDMI output, generate the code
 for it, and the system outputs through it. Since the KV260's HDMI is driven

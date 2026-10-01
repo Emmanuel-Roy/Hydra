@@ -62,6 +62,44 @@ implementation for **the IP that drives it** -- an IP type the project
 supports once, used by every board that has it. Supporting a new board's
 interface means supporting its IP type, never writing code for the board.
 
+**Every interface is a switch.** The configurator lists every interface the
+platform specification shows, and the user enables or disables each one.
+Each implementation carries a resource estimate (LUTs, FFs, BRAM, memory-port
+bandwidth); the generator subtracts the enabled interfaces' total from the
+target's resources, and what is left is the budget Hydra sizes the systolic
+array to. Disabling an interface returns its share to the array. A disabled
+interface generates nothing: no PS configuration, no fabric logic, no
+firmware, no device-tree node.
+
+What disabling saves depends on where the interface lives. A **hard
+peripheral in the PS** (USB, Ethernet, SD, QSPI, the DisplayPort controller)
+costs no fabric logic of its own; what it costs is the generated glue -- bus
+path, interrupt routing, for video the display engine -- plus memory-port
+bandwidth and firmware. An interface **built in the fabric** (MIPI CSI-2
+receivers, Pmod and GPIO, a capture pipeline) costs LUTs directly, and
+disabling it frees the most for the array.
+
+The KV260's interfaces (from its specification), and what the generator does
+with each:
+
+| interface | lives in | what is generated when enabled | fabric cost |
+|---|---|---|---|
+| **HDMI 1.4 / DisplayPort 1.2a** | PS DisplayPort controller (HDMI through a converter on the carrier) | PS config for the controller's fabric video input; the HLS display engine; controller set-up on the RISC-V; simple-framebuffer node (below) | the display engine and its memory port |
+| **USB 3.0 / USB 2.0** (keyboard, mouse, USB camera, storage) | PS USB controller, through a hub on the carrier | PS config leaving the controller's clocks and resets enabled at boot; its register window and interrupt on the RISC-V's MMIO and interrupt lines; a device-tree node for the generic USB driver | glue only |
+| **1 Gb Ethernet** | PS Ethernet controller | the same pattern: PS config, register window, interrupt, device-tree node | glue only |
+| **microSD** | PS SD controller | the same pattern; also a boot source | glue only |
+| **QSPI flash** | PS QSPI controller | the boot image's home; optionally a device the RISC-V can read | glue only |
+| **3x MIPI CSI-2 camera interfaces** | fabric (camera connectors on fabric banks) | an HLS CSI-2 receive and capture path per enabled interface, writing frames to memory; device-tree nodes | LUTs and a memory port per camera |
+| **OnSemi AP1302 ISP** | a chip on the carrier, between a sensor and a CSI-2 interface | its control (I2C) set-up, when a camera path through it is enabled | small |
+| **Pmod, GPIO** | fabric pins | an HLS GPIO block (or a Pmod peripheral, e.g. UART) on the MMIO window | small |
+| **fan PWM** | fabric pin | always generated: the bitstream must drive the fan | small |
+
+Every row is generated from what the platform specification says the
+interface is and what drives it, by IP type -- a second board with a PS USB
+controller reuses the USB row unchanged. Costs here are qualitative until
+Phase 2 measures them; the configurator's estimates come from those
+measurements.
+
 **Display: the KV260's HDMI output.** On the KV260, the HDMI connector is not
 wired to the fabric. It is driven by the PS's DisplayPort controller, through
 a DisplayPort-to-HDMI converter on the carrier (research: `kv260_platform.md`).

@@ -26,6 +26,7 @@ core is the same C++ on every target, and only generated files differ.
 | **clock and reset** | in | one clock per domain | the core's domain and the accelerator's may differ; the board side provides and crosses them |
 | **video stream** | out | pixels with video timing, from the uncore's display engine | the board side carries it to the display output the generator found (on the KV260, the PS DisplayPort controller's live-video input, which feeds the HDMI connector) |
 | **trace stream** | out | stream of retirement records | for lock-step: full records in simulation, hashes and the value log on the board ([lockstep.md](lockstep.md)) |
+| **enabled interfaces** | build-time input | the configurator's choice | which of the platform's interfaces exist in this build; a disabled one generates nothing and returns its resources to the accelerator's budget |
 | **platform description** | build-time input | generated header | memory windows, port count and width, clock frequencies, interrupt numbering -- template parameters, never constants in the core |
 
 Ports are **streams** because:
