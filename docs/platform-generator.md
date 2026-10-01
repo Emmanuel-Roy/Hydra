@@ -94,7 +94,8 @@ with each:
 | **Pmod, GPIO** | fabric pins | an HLS GPIO block (or a Pmod peripheral, e.g. UART) on the MMIO window | small |
 | **fan PWM** | fabric pin | always generated: the bitstream must drive the fan | small |
 
-Every row is generated from what the platform specification says the
+The full catalogue, for any board, is [io-catalog.md](io-catalog.md). Every
+row is generated from what the platform specification says the
 interface is and what drives it, by IP type -- a second board with a PS USB
 controller reuses the USB row unchanged. Costs here are qualitative until
 Phase 2 measures them; the configurator's estimates come from those

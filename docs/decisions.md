@@ -5,6 +5,12 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**A variety of I/O to build around, for any FPGA.** Ouroboros supports a broad
+catalogue of interface types, organised by what drives them, so the generator
+finds support for most of what any board offers
+([io-catalog.md](io-catalog.md)). "Any FPGA" means any AMD part the pinned
+Vivado/Vitis release targets, since the toolchain is AMD's.
+
 **Every I/O the platform shows is discovered, and each can be enabled or
 disabled.** Not only the display: USB, Ethernet, SD, QSPI, the cameras (MIPI
 CSI-2, the AP1302 ISP, USB cameras), Pmod and GPIO. The generator produces
