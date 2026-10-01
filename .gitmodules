@@ -17,7 +17,7 @@
 	path = Tools/Verification/suites/riscv-vector-tests
 	url = https://github.com/chipsalliance/riscv-vector-tests.git
 	shallow = true
-[submodule "Source/third_party/llama.cpp"]
-	path = Source/third_party/llama.cpp
+[submodule "Tools/llama.cpp"]
+	path = Tools/llama.cpp
 	url = https://github.com/ggml-org/llama.cpp.git
 	shallow = true

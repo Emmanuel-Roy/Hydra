@@ -56,7 +56,8 @@ repository structure only, until the owner says otherwise.
 | generated per-board output (never hand-edited) | `FPGA-Hardware/boards/<board>/` |
 | owner decisions | `docs/decisions.md` |
 | laptop physical hardware | `Hardware/` |
-| software (configurator, tools) | `Source/` |
+| software (configurator, generator) | `Source/` |
+| third-party tools and references (llama.cpp, the verification suites) | `Tools/` |
 | measured runs | `Performance/` |
 | models for the accelerator | `gguf/` |
 
