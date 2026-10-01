@@ -1,0 +1,50 @@
+{
+  "id": "20261001-011053-selftest--doomv-as-the-device-under-test",
+  "label": "selftest: DoomV as the device under test",
+  "commit": "8a90047",
+  "target": "doomv-stub",
+  "tools": "2026.1",
+  "key": "9f37d392c915eb43",
+  "config": {
+    "selftest": true,
+    "suites": [
+      "riscv-tests",
+      "riscv-tests-priv"
+    ],
+    "limit": null
+  },
+  "components": {},
+  "accuracy": {
+    "riscv-tests": {
+      "tests": 173,
+      "match": 173,
+      "mismatch": 0,
+      "error": 0,
+      "skip": 0,
+      "test_passed": 173,
+      "records": 71202,
+      "seconds": 2.1,
+      "dut_ips": 8648,
+      "failures": []
+    },
+    "riscv-tests-priv": {
+      "tests": 24,
+      "match": 24,
+      "mismatch": 0,
+      "error": 0,
+      "skip": 0,
+      "test_passed": 24,
+      "records": 4083,
+      "seconds": 0.3,
+      "dut_ips": 3900,
+      "failures": []
+    }
+  },
+  "notes": [
+    "DoomV stands in for the core: this proves the harness, not a design"
+  ],
+  "seconds": 2.5,
+  "ok": true,
+  "previous": null,
+  "regressions": []
+}

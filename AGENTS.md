@@ -5,8 +5,9 @@ The README says what Ouroboros is; this says how to work on it.
 
 ## Phase
 
-**Research and setup. No code yet.** Research notes, reports, designs and
-repository structure only, until the owner says otherwise.
+**Research and setup. No hardware code yet.** Research notes, reports, designs and
+repository structure, until the owner says otherwise -- plus the build, test
+and report automation in `scripts/`, which the owner asked for (2026-10-01).
 
 ## Targets
 
@@ -64,7 +65,8 @@ repository structure only, until the owner says otherwise.
 | laptop physical hardware | `Hardware/` |
 | software (configurator, generator) | `Source/` |
 | third-party tools and references (llama.cpp, the verification suites) | `Tools/` |
-| measured runs | `Performance/` |
+| measured runs (written by `scripts/pipeline.py`) | `Performance/` |
+| build, test and report automation | `scripts/` |
 | models for the accelerator | `gguf/` |
 
 ## Submodules

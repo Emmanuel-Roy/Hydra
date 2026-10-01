@@ -1,0 +1,255 @@
+#!/usr/bin/env python3
+"""Build, test for accuracy, and report on performance -- unattended.
+
+  python scripts/pipeline.py check
+      The pinned AMD tools and DoomV: present, the right version, and able to
+      see the target's part. Run first; a multi-hour run should not be the
+      thing that finds out.
+
+  python scripts/pipeline.py run [--components a,b] [--stages hls,csim,cosim,impl,accuracy]
+                                 [--suites x,y] [--target kv260] [--jobs N] [--label "..."]
+      For each HLS component: synthesis (resources, estimated clock, latency),
+      C simulation, co-simulation, out-of-context implementation (post-route
+      resources and Fmax). Then the accuracy stage: every test of every suite
+      run on the device under test and lock-stepped against DoomV, strictly.
+
+  python scripts/pipeline.py selftest [--limit N]
+      The accuracy stage with DoomV standing in for the core, to prove the
+      harness end to end before the core exists.
+
+Every run writes Performance/runs/<id>/report.json and report.md, adds a line
+to Performance/RUNS.md, compares itself with the last comparable run, and
+exits non-zero if anything failed or regressed. Configuration is in
+scripts/pipeline.toml.
+"""
+from __future__ import annotations
+
+import argparse
+import concurrent.futures as cf
+import datetime as dt
+import hashlib
+import json
+import os
+import subprocess
+import sys
+import time
+import tomllib
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
+sys.path.insert(0, str(HERE))
+from ouro import accuracy, hls, report  # noqa: E402
+from ouro.amd import AmdTools  # noqa: E402
+
+BUILD = ROOT / "build" / "pipeline"
+PERF = ROOT / "Performance"
+
+
+def load_config() -> dict:
+    cfg = tomllib.loads((HERE / "pipeline.toml").read_text())
+    cfg["tools"]["root"] = os.environ.get("OUROBOROS_AMD_ROOT", cfg["tools"]["root"])
+    cfg["doomv"]["root"] = os.environ.get("OUROBOROS_DOOMV_ROOT", cfg["doomv"]["root"])
+    return cfg
+
+
+def rooted(p: str) -> Path:
+    q = Path(p)
+    return q if q.is_absolute() else ROOT / q
+
+
+def say(msg: str):
+    print(f"[{dt.datetime.now():%H:%M:%S}] {msg}", flush=True)
+
+
+def git_commit() -> str:
+    r = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True)
+    dirty = subprocess.run(["git", "status", "--porcelain", "--untracked-files=no"], cwd=ROOT,
+                           capture_output=True, text=True).stdout.strip()
+    return r.stdout.strip() + ("+" if dirty else "")
+
+
+def pick_target(cfg: dict, name: str | None) -> tuple[str, dict]:
+    targets = cfg.get("targets", {})
+    if name:
+        if name not in targets:
+            sys.exit(f"no target '{name}' in pipeline.toml (have: {', '.join(targets)})")
+        return name, targets[name]
+    for n, t in targets.items():
+        if t.get("default"):
+            return n, t
+    sys.exit("pipeline.toml names no default target")
+
+
+# ---- check ----------------------------------------------------------------------
+
+PARTS_TCL = 'puts "OUROBOROS_PARTS [llength [get_parts -quiet {part}]]"\n'
+
+
+def part_visible(tools: AmdTools, part: str) -> tuple[bool, str]:
+    """Whether Vivado can use the part: installed, and licensed."""
+    BUILD.mkdir(parents=True, exist_ok=True)
+    tcl = BUILD / "check_part.tcl"
+    tcl.write_text(PARTS_TCL.format(part=part))
+    status, _ = tools.run("vivado", ["-mode", "batch", "-nojournal", "-nolog", "-source", str(tcl)],
+                          log=BUILD / "check_part.log", cwd=BUILD, timeout=1800)
+    text = (BUILD / "check_part.log").read_text(errors="replace")
+    for line in text.splitlines():
+        if line.startswith("OUROBOROS_PARTS"):
+            n = int(line.split()[1])
+            return n > 0, "" if n else "Vivado cannot see the part: it is not installed or not licensed"
+    return False, f"Vivado did not answer (exit {status}); see {BUILD / 'check_part.log'}"
+
+
+def cmd_check(args, cfg) -> int:
+    ok = True
+    tools = AmdTools(rooted(cfg["tools"]["root"]), cfg["tools"]["version"])
+    say(f"AMD tools at {tools.root}, pinned {tools.version}")
+    for tool, r in tools.check().items():
+        print(f"  {tool:10} {'ok ' + r['version'] if r['ok'] else 'NO: ' + r['why']}")
+        ok &= r["ok"]
+    name, target = pick_target(cfg, args.target)
+    if ok:
+        seen, why = part_visible(tools, target["part"])
+        print(f"  {'part':10} {target['part']} ({name}): {'ok' if seen else 'NO: ' + why}")
+        ok &= seen
+    droot = rooted(cfg["doomv"]["root"])
+    exe = droot / cfg["doomv"]["exe"]
+    print(f"  {'DoomV':10} {exe}: {'ok' if exe.exists() else 'NO: not built (see its README)'}")
+    ok &= exe.exists()
+    for sname, s in cfg.get("suites", {}).items():
+        n = sum(1 for p in droot.glob(s["glob"]) if p.is_file() and not p.suffix)
+        print(f"  {'suite':10} {sname}: {n} tests" + ("" if n else " -- NO TESTS (fetch them: see Tools/Verification/README.md)"))
+    print("ready" if ok else "NOT READY")
+    return 0 if ok else 1
+
+
+# ---- run ------------------------------------------------------------------------
+
+def build_component(name: str, comp: dict, stages: list[str], target_name: str, target: dict,
+                    tools: AmdTools, run_dir: Path, timeouts: dict) -> dict:
+    comp_dir = rooted(comp["dir"])
+    work = BUILD / target_name / name
+    logs = run_dir / "logs" / name
+    cfg_path = work / "hls_config.cfg"
+    out = {"notes": hls.write_config(comp_dir, target, cfg_path)}
+    for stage in stages:
+        if stage == "cosim" and not comp.get("cosim", True):
+            continue
+        say(f"{name}: {stage} ...")
+        r = hls.run_stage(tools, stage, cfg_path, work / "work", logs, timeouts[stage])
+        out[stage] = r
+        say(f"{name}: {stage} {'ok' if r['ok'] else 'FAILED'} in {r['seconds']:.0f} s"
+            + ("" if r["ok"] else f" -- {(r.get('errors') or ['see ' + r['log']])[0]}"))
+        if not r["ok"]:
+            break          # the later stages need this one
+    return out
+
+
+def finish(r: dict, started: float) -> int:
+    r["seconds"] = round(time.monotonic() - started, 1)
+    builds_ok = all(s.get("ok", True) for c in r.get("components", {}).values() for s in c.values() if isinstance(s, dict))
+    acc_ok = all(s["mismatch"] == 0 and s["error"] == 0 for s in r.get("accuracy", {}).values())
+    r["ok"] = builds_ok and acc_ok
+    d = report.write(r, PERF)
+    r["ok"] = r["ok"] and not r["regressions"]
+    (d / "report.json").write_text(json.dumps(r, indent=2) + "\n")
+    print()
+    print((d / "report.md").read_text())
+    say(f"{'PASS' if r['ok'] else 'FAIL'}: report in {d}")
+    return 0 if r["ok"] else 1
+
+
+def new_run(label: str, target_name: str, key_parts: dict, tools_version: str) -> dict:
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    slug = "".join(c if c.isalnum() else "-" for c in label.lower()).strip("-")[:40]
+    key = hashlib.sha256(json.dumps(key_parts, sort_keys=True).encode()).hexdigest()[:16]
+    return {"id": f"{stamp}-{slug}" if slug else stamp, "label": label, "commit": git_commit(),
+            "target": target_name, "tools": tools_version, "key": key, "config": key_parts,
+            "components": {}, "accuracy": {}, "notes": []}
+
+
+def cmd_run(args, cfg) -> int:
+    started = time.monotonic()
+    target_name, target = pick_target(cfg, args.target)
+    all_comps = cfg.get("components", {})
+    comps = args.components.split(",") if args.components else list(all_comps)
+    stages = args.stages.split(",")
+    unknown = [c for c in comps if c not in all_comps]
+    if unknown:
+        sys.exit(f"unknown components: {', '.join(unknown)}")
+    suites = args.suites.split(",") if args.suites else []
+    r = new_run(args.label, target_name, {"components": comps, "stages": stages, "target": target,
+                                          "suites": suites}, cfg["tools"]["version"])
+    run_dir = PERF / "runs" / r["id"]
+    hw_stages = [s for s in stages if s in hls.STAGES]
+    if hw_stages and comps:
+        tools = AmdTools(rooted(cfg["tools"]["root"]), cfg["tools"]["version"])
+        bad = {t: v for t, v in tools.check().items() if not v["ok"]}
+        if bad:
+            r["notes"].append("AMD tools not usable: " + "; ".join(f"{t} {v['why']}" for t, v in bad.items()))
+        else:
+            timeouts = {"hls": args.timeout, "csim": args.timeout, "cosim": args.timeout * 2, "impl": args.timeout * 2}
+            with cf.ThreadPoolExecutor(max(1, args.jobs)) as pool:
+                futs = {pool.submit(build_component, c, all_comps[c], hw_stages, target_name, target, tools,
+                                    run_dir, timeouts): c for c in comps}
+                for f in cf.as_completed(futs):
+                    res = f.result()
+                    r["notes"] += res.pop("notes")
+                    r["components"][futs[f]] = res
+    if "accuracy" in stages:
+        cores = [c for c in comps if all_comps[c].get("kind") == "core" and all_comps[c].get("dut")]
+        if not cores:
+            r["notes"].append("accuracy: no core component with a `dut` yet; use `selftest` to exercise the harness")
+        for c in cores:
+            r["accuracy"].update(run_accuracy(cfg, all_comps[c]["dut"], suites or list(cfg["suites"]), args))
+    return finish(r, started)
+
+
+def run_accuracy(cfg, dut, suite_names, args) -> dict:
+    droot = rooted(cfg["doomv"]["root"])
+    exe = droot / cfg["doomv"]["exe"]
+    if not exe.exists():
+        sys.exit(f"DoomV is not built: {exe}")
+    last = {}
+
+    def progress(suite, i, n, row):
+        if row["verdict"] in ("mismatch", "error") or i == n or time.monotonic() - last.get(suite, 0) > 10:
+            last[suite] = time.monotonic()
+            say(f"{suite}: {i}/{n}  {row['test']}: {row['verdict']}")
+
+    return accuracy.run_suites(cfg["suites"], suite_names, droot, exe, dut, BUILD / "accuracy",
+                               args.jobs, args.timeout, args.limit, progress)
+
+
+def cmd_selftest(args, cfg) -> int:
+    started = time.monotonic()
+    names = args.suites.split(",") if args.suites else cfg["selftest"]["suites"]
+    r = new_run(args.label or "selftest: DoomV as the device under test", "doomv-stub",
+                {"selftest": True, "suites": names, "limit": args.limit}, cfg["tools"]["version"])
+    r["notes"].append("DoomV stands in for the core: this proves the harness, not a design")
+    r["accuracy"] = run_accuracy(cfg, cfg["selftest"]["dut"], names, args)
+    return finish(r, started)
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = ap.add_subparsers(dest="cmd", required=True)
+    for name in ("check", "run", "selftest"):
+        p = sub.add_parser(name)
+        p.add_argument("--target")
+        p.add_argument("--jobs", type=int, default=max(1, (os.cpu_count() or 2) // 2))
+        p.add_argument("--timeout", type=float, default=4 * 3600, help="per stage or test, seconds")
+        p.add_argument("--label", default="")
+        p.add_argument("--suites")
+        p.add_argument("--limit", type=int, help="at most this many tests per suite")
+        if name == "run":
+            p.add_argument("--components")
+            p.add_argument("--stages", default="hls,csim,cosim,impl,accuracy")
+    args = ap.parse_args()
+    cfg = load_config()
+    return {"check": cmd_check, "run": cmd_run, "selftest": cmd_selftest}[args.cmd](args, cfg)
+
+
+if __name__ == "__main__":
+    sys.exit(main())
