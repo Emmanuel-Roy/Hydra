@@ -3,6 +3,18 @@
 The owner's decisions, newest first. Where one overrides a research report in
 `agentic/reports/`, it says so; the report itself is left as written.
 
+## 2026-10-01
+
+**The core's clock is the FPGA's clock, in every mode.** Vitis software
+emulation, hardware emulation and the physical FPGA all run the core on the
+same clock definition: `mcycle` counts the core's clock cycles, `mtime` is
+derived from that clock, and the timebase the device tree advertises comes
+from the platform's clock frequency. Supersedes the proposal in
+`lockstep.md` to give verification builds Sail's instruction-counted clock.
+Consequence: lock-step against DoomV is strict on everything except values
+the clock decides (counter and time reads, pending timer interrupts and where
+they are taken), which come from the core's record -- DoomV's lenient mode.
+
 ## 2026-09-30
 
 **riscv-formal's SystemVerilog wrapper is allowed, for testing only.** It checks the core's retirement port and is never part of the hardware; the all-HLS rule covers everything that is.

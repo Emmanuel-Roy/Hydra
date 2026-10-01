@@ -61,8 +61,8 @@ specification:
 ## What lives inside the contract but is not the core
 
 An "uncore" common to every board, in HLS like everything else: the timer
-(ACLINT `mtime`/`mtimecmp`, with the clock source a build parameter -- see
-[lockstep.md](lockstep.md)), the interrupt controller (PLIC, or APLIC/IMSIC as
+(ACLINT `mtime`/`mtimecmp`, counting from the core's own clock -- the FPGA's
+clock in every mode, see [lockstep.md](lockstep.md)), the interrupt controller (PLIC, or APLIC/IMSIC as
 RVA23 platforms use), a UART for the console, and the bridge that splits the
 core's traffic between memory ports and the MMIO window. These are part of the
 machine Linux sees, so they are the same on every board.

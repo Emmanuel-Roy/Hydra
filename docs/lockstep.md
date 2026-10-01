@@ -68,22 +68,37 @@ handles them in one of two modes, both already implemented:
   The run reports how many values it took. This is how hardware with its own
   real-time timer and real devices is stepped.
 
-**[decide] The core's clock.** A real laptop needs a timer that follows real
-time; strict lock-step needs Sail's instruction-counted clock. Proposal: the
-core's timer and counter source is a build parameter. *Verification builds*
-use Sail's clock model and Sail's platform parameters, and are lock-stepped
-strictly -- the same bar DoomV meets. *Board builds* use a real-time timer and
-are lock-stepped leniently, with every value taken from the core logged (see
-below), so a run can still be replayed exactly. Every core change has to pass
-strict lock-step before a board build counts.
+**The core's clock** (decisions, 2026-10-01): the core runs on the FPGA's
+clock, defined the same way in Vitis software emulation, hardware emulation
+and on the physical FPGA. `mcycle` counts the core's clock cycles; `mtime` is
+derived from that clock; the timebase in the device tree comes from the
+platform's clock frequency. Since the core's pipeline is one loop iteration
+per clock cycle ([hls-coding-standard.md](hls-coding-standard.md)), even
+software emulation counts real cycles.
+
+DoomV follows Sail's clock instead (one `mtime` tick per two instructions),
+so the two disagree on what the clock decides, by design. Ouroboros's
+lock-step is therefore **strict on everything except clock-decided values**:
+counter and time reads, pending timer interrupts, and where interrupts are
+taken come from the core's record, checked for being enabled there; every
+other register, CSR, store and trap is compared strictly. That is DoomV's
+lenient mode, restricted to the clock -- device loads are compared too
+wherever the device is modelled on both sides.
+
+**Where the modes can differ.** The cycle count of a run depends on memory
+timing. Software and hardware emulation see the latencies their memory
+models give; the physical board sees the PS DDR controller's, which can vary
+between runs. So the same program can take a timer interrupt at a different
+instruction on the board than in emulation. Each run is still reproducible:
+the clock-decided values are logged (below) and DoomV replays them.
 
 ## Three levels, one record
 
 | level | the core is | DoomV is | speed (report's estimates) | used for |
 |---|---|---|---|---|
-| **C simulation** | the HLS C++, compiled natively | linked into the same process | about 10^6-10^7 instructions/s | every change: riscv-tests, riscv-vector-tests, arch-test, riscv-dv seeds, Linux and Ubuntu boots |
-| **RTL simulation** | the Verilog Vitis/Vivado generate, in XSim or Verilator | reading the trace the testbench writes | kHz | short directed tests on every synthesis: does the generated RTL do what the C++ did |
-| **on the board** | the bitstream on the KV260 | offline, replaying a recorded log | full speed; comparison offline | milestone boots; bisecting a divergence |
+| **C simulation** (Vitis software emulation) | the HLS C++, compiled natively | linked into the same process | about 10^6-10^7 instructions/s | every change: riscv-tests, riscv-vector-tests, arch-test, riscv-dv seeds, Linux and Ubuntu boots |
+| **RTL simulation** (Vitis hardware emulation) | the Verilog Vitis/Vivado generate, in XSim or Verilator | reading the trace the testbench writes | kHz | short directed tests on every synthesis: does the generated RTL do what the C++ did |
+| **on the board** (hardware) | the bitstream on the FPGA | offline, replaying a recorded log | full speed; comparison offline | milestone boots; bisecting a divergence |
 
 **C simulation is the main level**, and the reason the all-HLS rule helps
 verification: the C++ that becomes the hardware can be stepped against DoomV
@@ -131,7 +146,11 @@ These are DoomV changes, made in the DoomV repository and pinned here.
 
 ## Open
 
-- **[decide]** The clock proposal above.
+- Whether the board's memory latency can be made run-to-run constant (for
+  example a fixed-latency adapter), which would make board runs repeat
+  cycle-for-cycle and not only replayably.
+- A DoomV mode that is lenient on clock-decided values only, rather than on
+  devices and pending-interrupt state as well.
 - The record's binary form inside the core and on the trace stream (the
   rendering to Sail text happens outside the hardware).
 - Vector register writes are 128 bits each; whether the stream carries whole
