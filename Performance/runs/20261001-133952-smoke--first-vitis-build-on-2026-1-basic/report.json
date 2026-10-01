@@ -1,0 +1,115 @@
+{
+  "id": "20261001-133952-smoke--first-vitis-build-on-2026-1-basic",
+  "label": "smoke: first Vitis build on 2026.1 Basic",
+  "commit": "a50c402",
+  "target": "kv260_som",
+  "tools": "2026.1",
+  "key": "4a84998523f3fa5d",
+  "config": {
+    "components": [
+      "smoke"
+    ],
+    "component_config": {
+      "smoke": {
+        "hls_config": "22175892fe1dedb8",
+        "declared": {
+          "kind": "smoke",
+          "cosim": true
+        }
+      }
+    },
+    "stages": [
+      "hls",
+      "csim",
+      "cosim",
+      "impl"
+    ],
+    "target": {
+      "part": "xck26-sfvc784-2LV-c",
+      "clock_mhz": 100
+    },
+    "suites": []
+  },
+  "components": {
+    "smoke": {
+      "hls": {
+        "stage": "hls",
+        "status": 0,
+        "seconds": 30.0,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-133952-smoke--first-vitis-build-on-2026-1-basic\\logs\\smoke\\hls.log",
+        "ok": true,
+        "csynth": {
+          "report": "Z:\\Code\\Dev\\Ouroboros\\build\\pipeline\\kv260_som\\smoke\\work\\hls\\syn\\report\\csynth.xml",
+          "target_clock_ns": 10.0,
+          "estimated_clock_ns": 2.443,
+          "latency_best": 22.0,
+          "latency_worst": 1030.0,
+          "interval_min": 19.0,
+          "interval_max": 1027.0,
+          "resources": {
+            "BRAM_18K": 0.0,
+            "DSP": 1.0,
+            "FF": 168.0,
+            "LUT": 265.0,
+            "URAM": 0.0
+          },
+          "available": {
+            "BRAM_18K": 288.0,
+            "DSP": 1248.0,
+            "FF": 234240.0,
+            "LUT": 117120.0,
+            "URAM": 64.0
+          }
+        }
+      },
+      "csim": {
+        "stage": "csim",
+        "status": 0,
+        "seconds": 11.8,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-133952-smoke--first-vitis-build-on-2026-1-basic\\logs\\smoke\\csim.log",
+        "ok": true
+      },
+      "cosim": {
+        "stage": "cosim",
+        "status": 0,
+        "seconds": 39.1,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-133952-smoke--first-vitis-build-on-2026-1-basic\\logs\\smoke\\cosim.log",
+        "ok": true,
+        "cosim": {
+          "report": "Z:\\Code\\Dev\\Ouroboros\\build\\pipeline\\kv260_som\\smoke\\work\\hls\\sim\\report\\smoke_top_cosim.rpt",
+          "verdict": "pass"
+        }
+      },
+      "impl": {
+        "stage": "impl",
+        "status": 0,
+        "seconds": 259.9,
+        "log": "Z:\\Code\\Dev\\Ouroboros\\Performance\\runs\\20261001-133952-smoke--first-vitis-build-on-2026-1-basic\\logs\\smoke\\impl.log",
+        "ok": true,
+        "impl": {
+          "report": "Z:\\Code\\Dev\\Ouroboros\\build\\pipeline\\kv260_som\\smoke\\work\\hls\\impl\\report\\verilog\\export_impl.xml",
+          "resources": {
+            "BRAM": 0.0,
+            "CLB": 31.0,
+            "DSP": 1.0,
+            "FF": 266.0,
+            "LATCH": 0.0,
+            "LUT": 212.0,
+            "SRL": 0.0,
+            "URAM": 0.0
+          },
+          "target_clock_ns": 10.0,
+          "achieved_clock_ns": 2.5,
+          "fmax_mhz": 400.0,
+          "timing_met": null
+        }
+      }
+    }
+  },
+  "accuracy": {},
+  "notes": [],
+  "seconds": 342.3,
+  "ok": true,
+  "previous": null,
+  "regressions": []
+}

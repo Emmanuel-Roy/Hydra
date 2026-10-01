@@ -94,7 +94,10 @@ def parse_impl(work: Path) -> dict | None:
             "target_clock_ns": _num(timing.findtext("TargetClockPeriod")),
             "achieved_clock_ns": achieved,
             "fmax_mhz": round(1000.0 / achieved, 1) if achieved else None,
-            "timing_met": (timing.findtext("TimingMet") or "").upper() == "TRUE" or None,
+            # 2026.1's export report has no TimingMet; the achieved period
+            # against the target says the same thing.
+            "timing_met": (achieved <= _num(timing.findtext("TargetClockPeriod")))
+                          if achieved and _num(timing.findtext("TargetClockPeriod")) else None,
         }
     return None
 

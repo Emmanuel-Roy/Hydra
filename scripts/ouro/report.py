@@ -67,7 +67,7 @@ def fmt(v, unit=""):
     if v is None:
         return "--"
     if isinstance(v, float):
-        v = round(v, 2)
+        v = int(v) if v.is_integer() else round(v, 2)
     return f"{v:,}{unit}" if isinstance(v, (int, float)) else f"{v}{unit}"
 
 
@@ -78,7 +78,7 @@ def markdown(r: dict) -> str:
         lines += ["Notes:", ""] + [f"- {n}" for n in r["notes"]] + [""]
     if r.get("components"):
         lines += ["## Builds", "",
-                  "| component | stage | result | time | LUT | FF | DSP | BRAM | URAM | clock (ns) | Fmax |",
+                  "| component | stage | result | time | LUT | FF | DSP | BRAM (18K / 36K) | URAM | clock (ns) | Fmax |",
                   "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
         for name, comp in r["components"].items():
             for stage in ("hls", "csim", "cosim", "impl"):
@@ -88,9 +88,12 @@ def markdown(r: dict) -> str:
                 rep = s.get("csynth") or s.get("impl") or {}
                 res = rep.get("resources") or {}
                 clk = rep.get("achieved_clock_ns") or rep.get("estimated_clock_ns")
+                # Synthesis counts 18K halves, implementation whole 36K blocks.
+                bram = (f"{fmt(res['BRAM_18K'])} x18K" if "BRAM_18K" in res
+                        else f"{fmt(res['BRAM'])} x36K" if "BRAM" in res else "--")
                 lines.append(f"| {name} | {stage} | {'ok' if s['ok'] else 'FAILED'} | {fmt(s['seconds'], ' s')} | "
                              f"{fmt(res.get('LUT'))} | {fmt(res.get('FF'))} | {fmt(res.get('DSP'))} | "
-                             f"{fmt(res.get('BRAM_18K'))} | {fmt(res.get('URAM'))} | {fmt(clk)} | "
+                             f"{bram} | {fmt(res.get('URAM'))} | {fmt(clk)} | "
                              f"{fmt(rep.get('fmax_mhz'), ' MHz')} |")
         lines.append("")
     if r.get("accuracy"):
