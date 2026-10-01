@@ -126,10 +126,38 @@ supporting every type affordable.
 Each unpacker's resource cost is measured when it is first built and stored
 with it, so the configurator can show what each one costs.
 
-**The KV cache** can use every type llama.cpp allows for it: F32, F16, BF16,
-Q8_0, Q4_0, Q4_1, IQ4_NL, Q5_0, Q5_1 (`common/arg.cpp`, `kv_cache_types`).
-Quantized V needs a flash-attention path in llama.cpp, and so in the
-accelerator.
+## The KV cache
+
+Treated like the PEs (decisions, 2026-10-01): **recommended for the supplied
+`.gguf`, and adjustable in every respect.**
+
+**Recommended, from the `.gguf`.** The file stores no KV type, so Ouroboros
+derives one from the model:
+
+| what | recommended from |
+|---|---|
+| K type, V type | the model's precision: an F32/F16/BF16 model keeps its own floating-point format; a quantised model gets Q8_0, the KV format closest to its 8-bit activations |
+| layout and size per token | the model's attention shape: `block_count`, `head_count_kv`, key and value head dimensions (grouped-query attention shrinks it) |
+| context length | the model's `context_length`, capped by what fits in DDR beside Ubuntu and the weights, and by how much a full context may slow decode |
+| attention hardware | sized for that K/V type and the model's head dimensions, flash-style so quantised V works (llama.cpp requires flash attention for a quantised V cache) |
+
+**Adjustable, like the PE units.** Every one of these can be changed:
+
+- the **K and V types separately**, from every type llama.cpp allows for the
+  cache: F32, F16, BF16, Q8_0, Q4_0, Q4_1, IQ4_NL, Q5_0, Q5_1 (`common/arg.cpp`,
+  `kv_cache_types`);
+- the **context length**, and with it the **share of DDR** the cache takes;
+- **dedicated attention hardware for other KV types**, from the LUT budget
+  exactly as PEs of other weight types are (above), so one bitstream can run
+  caches of several types;
+- where the cache lives, if the target offers a choice (DDR, or on-chip memory
+  for the most recent tokens on parts with enough of it -- the KV260 has not:
+  its URAM holds tens of tokens for a 1.5B model).
+
+The configurator shows each choice's cost and effect: DDR used, the longest
+context that fits, decode speed at a full context, and the LUTs the attention
+hardware takes. Every KV type is verified bit-exact against ggml like the
+weight types.
 
 ## Verification
 

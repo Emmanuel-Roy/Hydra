@@ -42,6 +42,14 @@ and report automation in `scripts/`, which the owner asked for (2026-10-01).
   stopgap with its replacement planned; licensed IP never
   ([docs/io-catalog.md](docs/io-catalog.md)).
 
+## Configuration
+
+- **Everything is adjustable, if the user wishes.** The configurator always
+  offers a recommendation -- optimised for the supplied `.gguf` and target --
+  and every value in it can be changed. Design nothing as a fixed choice that
+  a build could vary; the project rules above are the only things not offered
+  as settings.
+
 ## Verification
 
 - **Lock-step with DoomV is the target.** The core must run in lock-step with

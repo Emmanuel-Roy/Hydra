@@ -5,6 +5,19 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**Everything is adjustable, if the user wishes.** Every recommendation the
+configurator makes -- from the `.gguf`, the target, or anything else -- is a
+starting point the user can change, never a lock. Fixed project rules (all HLS,
+own IP, strict lock-step) are rules, not settings; everything a build can vary
+is the user's to vary.
+
+**The KV cache: recommended for the `.gguf`, configurable like the PEs.** The
+recommendation derives its K/V types, size, context and attention hardware from
+the supplied model; the user can set the K and V types separately (all nine
+llama.cpp cache types), the context and DDR share, dedicated attention
+hardware for other KV types from the LUT budget, and placement where the
+target allows ([gguf-datatypes.md](gguf-datatypes.md)).
+
 **Recommended: just the supplied `.gguf`. Allowed: LUTs for other datatypes.**
 The recommended configuration is optimised for the supplied `.gguf` alone. The
 user may allocate any share of the LUT budget to PEs of other datatypes, to
