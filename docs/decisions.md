@@ -5,6 +5,13 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**Every datatype a `.gguf` can hold is supported, in hardware.** All 35 live
+`ggml_type`s, including the IQ lattice-codebook, ternary and FP4 types, with
+none left to a CPU fallback -- superseding the configurator report's proposal
+to warn on IQ2/IQ3 and fall back. By default a build includes the unpackers
+for the types in the chosen `.gguf`; more, or all, can be added
+([gguf-datatypes.md](gguf-datatypes.md)).
+
 **The program is called Ouroboros.** The repository README's "Hydra" is
 renamed; notes written before this may still say Hydra.
 
