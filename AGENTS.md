@@ -60,6 +60,8 @@ and report automation in `scripts/`, which the owner asked for (2026-10-01).
 | research reports (synthesised) | `agentic/reports/` |
 | every bug found, and how it was resolved | `agentic/bugs/` |
 | designs and decisions | `docs/` |
+| targets: pointers to platform specifications | `FPGAs/<target>/` |
+| every build's outputs, one folder per build | `build/<FPGA-name>-<date-time>/` |
 | generated per-board output (never hand-edited) | `FPGA-Hardware/boards/<board>/` |
 | owner decisions | `docs/decisions.md` |
 | laptop physical hardware | `Hardware/` |

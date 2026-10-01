@@ -13,6 +13,10 @@
       resources and Fmax). Then the accuracy stage: every test of every suite
       run on the device under test and lock-stepped against DoomV, strictly.
 
+  python scripts/pipeline.py targets [--search kria] [--save xilinx.com:zcu104 --as zcu104]
+      The targets: those saved in FPGAs/ and every board and Vitis platform
+      installed with the AMD tools. --save adds a library board to FPGAs/.
+
   python scripts/pipeline.py selftest [--limit N]
       The accuracy stage with DoomV standing in for the core, to prove the
       harness end to end before the core exists.
@@ -39,7 +43,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent
 sys.path.insert(0, str(HERE))
-from ouro import accuracy, hls, report  # noqa: E402
+from ouro import accuracy, hls, report, targets  # noqa: E402
 from ouro.amd import AmdTools  # noqa: E402
 
 BUILD = ROOT / "build" / "pipeline"
@@ -70,15 +74,45 @@ def git_commit() -> str:
 
 
 def pick_target(cfg: dict, name: str | None) -> tuple[str, dict]:
-    targets = cfg.get("targets", {})
-    if name:
-        if name not in targets:
-            sys.exit(f"no target '{name}' in pipeline.toml (have: {', '.join(targets)})")
-        return name, targets[name]
-    for n, t in targets.items():
-        if t.get("default"):
-            return n, t
-    sys.exit("pipeline.toml names no default target")
+    """A target from FPGAs/ or the installed library; the part is read from
+    the library's board files, the clock from the defaults."""
+    name = name or cfg["defaults"]["target"]
+    try:
+        t = targets.resolve(name, ROOT, rooted(cfg["tools"]["root"]))
+    except LookupError as e:
+        sys.exit(str(e))
+    t["clock_mhz"] = cfg["defaults"]["clock_mhz"]
+    return name, t
+
+
+def cmd_targets(args, cfg) -> int:
+    tools_root = rooted(cfg["tools"]["root"])
+    mine = targets.saved(ROOT)
+    print("Saved in FPGAs/:")
+    for name, t in mine.items():
+        try:
+            part = targets.resolve(name, ROOT, tools_root)["part"]
+        except LookupError as e:
+            part = f"UNRESOLVED: {e}"
+        print(f"  {name:20} {t.get('name', ''):45} {part}")
+    boards = targets.library_boards(tools_root)
+    plats = targets.library_platforms(tools_root)
+    q = (args.search or "").lower()
+    shown = [b for b in boards if not q or q in b["id"].lower() or q in b["name"].lower()]
+    print(f"\nIn the AMD library ({tools_root}): {len(boards)} boards, {len(plats)} Vitis platforms"
+          + (f"; matching '{args.search}':" if q else ":"))
+    for b in shown:
+        print(f"  {b['id']:42} {b['name'][:45]:45} {b['part'] or '(no part: a carrier or add-on)'}")
+    for p in plats:
+        if not q or q in p["id"].lower():
+            print(f"  platform  {p['id']}")
+    if args.save:
+        b = next((x for x in boards if x["id"] == args.save or x["id"].endswith(":" + args.save)), None)
+        if not b:
+            sys.exit(f"no board '{args.save}' in the library")
+        name = args.as_name or b["id"].split(":", 1)[1]
+        print(f"\nsaved: {targets.save(name, [b['id']], b['name'], ROOT)}")
+    return 0
 
 
 # ---- check ----------------------------------------------------------------------
@@ -235,6 +269,10 @@ def cmd_selftest(args, cfg) -> int:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
+    t = sub.add_parser("targets", help="list targets: FPGAs/ and the installed AMD library")
+    t.add_argument("--search", help="only library entries matching this")
+    t.add_argument("--save", metavar="BOARD", help="save a library board as a target in FPGAs/")
+    t.add_argument("--as", dest="as_name", help="the FPGAs/ folder name to save it as")
     for name in ("check", "run", "selftest"):
         p = sub.add_parser(name)
         p.add_argument("--target")
@@ -248,7 +286,7 @@ def main() -> int:
             p.add_argument("--stages", default="hls,csim,cosim,impl,accuracy")
     args = ap.parse_args()
     cfg = load_config()
-    return {"check": cmd_check, "run": cmd_run, "selftest": cmd_selftest}[args.cmd](args, cfg)
+    return {"check": cmd_check, "run": cmd_run, "selftest": cmd_selftest, "targets": cmd_targets}[args.cmd](args, cfg)
 
 
 if __name__ == "__main__":

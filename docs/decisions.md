@@ -5,6 +5,21 @@ The owner's decisions, newest first. Where one overrides a research report in
 
 ## 2026-10-01
 
+**The program is called Ouroboros.** The repository README's "Hydra" is
+renamed; notes written before this may still say Hydra.
+
+**The flow, and where things go** ([ouroboros-flow.md](ouroboros-flow.md)).
+Run it; a rich terminal UI opens; it finds a `.gguf` in `gguf/` or asks for
+one; it asks for the target; it walks through the configuration with a
+recommendation from the `.gguf`; it generates the files, synthesises in Vitis
+then Vivado and writes the bitstream, with live progress bars. Every build
+goes to `build/<FPGA-name>-<date-time>/`, with folders for the Vitis files,
+the Vivado files, the XDCs and the rest, and the bitstream in `bitstreams/`.
+
+**Targets are picked from the Vivado/Vitis library.** Any board or platform
+installed with the pinned tools can be the target; picked ones are saved in
+`FPGAs/`, each a pointer to its platform specification.
+
 **Ouroboros aims to use 100% its own IP.** All logic is Ouroboros's HLS. The
 silicon itself -- the PS, clock managers, I/O primitives, transceivers, hard
 blocks -- is reached through the thinnest generated wrapper, with no vendor

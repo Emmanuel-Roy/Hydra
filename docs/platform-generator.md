@@ -25,10 +25,10 @@ kind.
 
 ## Outputs, per target, all generated
 
-1. **Platform description** for the core and Hydra: memory windows, number and
+1. **Platform description** for the core and Ouroboros: memory windows, number and
    width of memory ports, clock frequencies, interrupt numbering, resource
    counts. A generated header the HLS sources take as template parameters,
-   and a machine-readable file Hydra reads.
+   and a machine-readable file Ouroboros reads.
 2. **Block design** (Vivado Tcl, generated): the PS instance configured from
    the board preset, with the HP ports, the low-power port and the `pl_clk`
    outputs the contract needs; the core's and accelerator's HLS IPs; the
@@ -66,7 +66,7 @@ interface means supporting its IP type, never writing code for the board.
 platform specification shows, and the user enables or disables each one.
 Each implementation carries a resource estimate (LUTs, FFs, BRAM, memory-port
 bandwidth); the generator subtracts the enabled interfaces' total from the
-target's resources, and what is left is the budget Hydra sizes the systolic
+target's resources, and what is left is the budget Ouroboros sizes the systolic
 array to. Disabling an interface returns its share to the array. A disabled
 interface generates nothing: no PS configuration, no fabric logic, no
 firmware, no device-tree node.
@@ -151,7 +151,7 @@ The K26 is covered by the free Vivado ML Standard edition (AMD forum answer;
 
 The generator produces everything target-specific. It does not produce the
 core, the uncore or the accelerator -- those are hand-written C++ (the
-accelerator's configuration comes from Hydra). If generating something
+accelerator's configuration comes from Ouroboros). If generating something
 turns out to need knowledge the platform specification lacks, that is
 recorded in `docs/decisions.md` as a gap, not filled in by hand.
 

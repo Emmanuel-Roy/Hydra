@@ -58,7 +58,7 @@ specification:
   DDR, loads the bitstream and parks);
 - **the device tree** and the firmware platform the RISC-V boots with;
 - **the resource budget**: LUTs, FFs, DSPs, BRAM, URAM and memory bandwidth,
-  which Hydra and the core's configuration read.
+  which Ouroboros and the core's configuration read.
 
 ## What lives inside the contract but is not the core
 

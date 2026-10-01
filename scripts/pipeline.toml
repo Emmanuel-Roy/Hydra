@@ -16,14 +16,12 @@ root = "Z:/FPGA/2026.1"
 root = "Tools/Verification/DoomV"
 exe = "riscv_doom.exe"
 
-# Targets an HLS component can be built for. Until the platform generator
-# exists (docs/platform-generator.md), a target names only what HLS needs: the
-# part and the clock. The generator will produce these from the board's
-# platform specification; nothing here is board code.
-[targets.kv260]
-part = "xck26-sfvc784-2LV-c"
-clock_mhz = 100
-default = true
+# Targets come from FPGAs/ (saved targets) and from the boards and platforms
+# installed with the AMD tools; `pipeline.py targets` lists them. A target
+# only names its platform specification; the part is read from it.
+[defaults]
+target = "kv260"
+clock_mhz = 100   # a configuration choice, not a property of the board
 
 # HLS components. Each has a directory holding an hls_config.cfg (without part
 # or clock -- the pipeline adds the target's) and its sources.

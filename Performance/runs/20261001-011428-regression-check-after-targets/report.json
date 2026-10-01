@@ -1,0 +1,50 @@
+{
+  "id": "20261001-011428-regression-check-after-targets",
+  "label": "regression check after targets",
+  "commit": "c0933b0+",
+  "target": "doomv-stub",
+  "tools": "2026.1",
+  "key": "16c67ac8b47ca693",
+  "config": {
+    "selftest": true,
+    "suites": [
+      "riscv-tests",
+      "riscv-tests-priv"
+    ],
+    "limit": 3
+  },
+  "components": {},
+  "accuracy": {
+    "riscv-tests": {
+      "tests": 3,
+      "match": 3,
+      "mismatch": 0,
+      "error": 0,
+      "skip": 0,
+      "test_passed": 3,
+      "records": 330,
+      "seconds": 0.1,
+      "dut_ips": 7333,
+      "failures": []
+    },
+    "riscv-tests-priv": {
+      "tests": 3,
+      "match": 3,
+      "mismatch": 0,
+      "error": 0,
+      "skip": 0,
+      "test_passed": 3,
+      "records": 756,
+      "seconds": 0.1,
+      "dut_ips": 5362,
+      "failures": []
+    }
+  },
+  "notes": [
+    "DoomV stands in for the core: this proves the harness, not a design"
+  ],
+  "seconds": 0.2,
+  "ok": true,
+  "previous": null,
+  "regressions": []
+}
