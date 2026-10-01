@@ -1,7 +1,6 @@
 # I/O catalogue
 
-Status: **draft for review** (Phase 0). Decisions marked **[decide]** need the
-owner.
+Status: **draft for review** (Phase 0).
 
 Ouroboros has to build around whatever a board offers -- any FPGA, not just
 the KV260 (decisions, 2026-10-01). The generator ([platform-generator.md](platform-generator.md))
@@ -20,27 +19,38 @@ in scope; without one, the generator's output is smaller, not different in
 kind. Other vendors' FPGAs (Intel/Altera, Lattice, Efinix, Gowin, Microchip)
 need a different HLS toolchain and are out of scope.
 
-## Four ways an interface is implemented
+## Ouroboros's own IP, on the silicon
+
+Ouroboros aims to use **100% its own IP** (decisions, 2026-10-01). Every piece
+of logic in the FPGA -- the core, the uncore, the accelerator, every
+interface -- is Ouroboros's own C++ for HLS. What is not logic is the silicon
+itself, which no IP can replace and HLS cannot express:
+
+| silicon | examples | reached through |
+|---|---|---|
+| the processing system, where there is one | Zynq-7000 PS, Zynq UltraScale+ PS (owns the KV260's DDR, clocks, boot and PC peripherals), Versal CIPS | the PS block, configured by the generator from the board preset; its hard peripherals are silicon too, driven by Ouroboros firmware on the RISC-V |
+| clock managers | MMCM, PLL | the thinnest generated wrapper, one primitive per clock domain |
+| I/O primitives | input/output SERDES, DDR registers, delays, differential buffers, native MIPI D-PHY I/O | the thinnest generated wrapper, beside the HLS logic that drives them |
+| transceivers | GTP/GTX/GTH/GTY | the thinnest generated wrapper |
+| fabric hard blocks | PCIe blocks, Versal's hard memory controllers, XADC/SYSMON | the thinnest generated wrapper |
+| memories and DSPs | BRAM, URAM, DSP48 | inferred by HLS from the C++ -- no wrapper at all |
+
+"Thinnest wrapper" means the primitive and nothing else: no vendor logic
+around it, no licence. Everything the primitive's own documentation leaves to
+the designer -- calibration, protocol, framing -- is Ouroboros's HLS.
+
+**Vendor soft IP is a stopgap, never a destination.** Where an interface
+cannot yet be built from Ouroboros IP on primitives, vendor soft IP may stand
+in, listed in **Stopgaps** below with the Ouroboros block that replaces it. A
+build that uses one says so. **Licensed IP is never used.**
+
+## How an interface is implemented
 
 | kind | what it is | generated as | fabric cost |
 |---|---|---|---|
-| **PS hard peripheral** | a controller in the board's processing system (Zynq-7000, Zynq UltraScale+, Versal) | PS configuration enabling it; its register window and interrupt on the RISC-V's MMIO window and interrupt lines; firmware set-up on the RISC-V; a device-tree node for Linux's generic driver | glue only |
-| **fabric hard block** | silicon in the FPGA fabric that is not a processor: PCIe blocks, multi-gigabit transceivers, memory controllers on Versal, I/O SERDES, clock managers | Vivado IP from the catalogue (Clocking Wizard, SelectIO, PCIe, transceiver wizards, MIG), configured by the generator | the IP's wrapper |
-| **vendor soft IP** | an AMD IP core built from fabric logic (MIG for DDR on 7-series/UltraScale, Ethernet MACs, video subsystems) | Vivado IP from the catalogue, configured by the generator | the IP's size; some need a licence |
-| **Ouroboros HLS IP** | an interface written in C++ for HLS, in this project | an HLS top, instantiated with the platform's parameters | as measured |
-
-HLS cannot instantiate FPGA primitives directly: I/O SERDES, DDR flip-flops,
-clock managers, transceivers. Where an interface needs one -- TMDS serialising
-for HDMI, a DDR memory PHY, Ethernet's RGMII timing -- the generator configures
-the vendor IP that wraps it, and the HLS logic sits beside it.
-
-**[decide] Vendor IP counts as generated.** The all-HLS rule forbids
-hand-written HDL. Vivado catalogue IP (MIG, Clocking Wizard, PCIe, SelectIO,
-transceiver wizards, video and Ethernet subsystems) is configured by the
-generator and its RTL produced by Vivado -- generated, not hand-written. This
-catalogue assumes that reading, because several classes below cannot be built
-without it on any AMD part. Licensed IP is marked; using it needs a licence
-the user may not have, so an unlicensed alternative is listed where one exists.
+| **PS hard peripheral** | a controller in the board's processing system (Zynq-7000, Zynq UltraScale+, Versal) | PS configuration enabling it; its register window and interrupt on the RISC-V's MMIO window and interrupt lines; Ouroboros firmware on the RISC-V; a device-tree node for Linux's generic driver | glue only |
+| **Ouroboros HLS IP on primitives** | the interface's logic in C++ for HLS, beside the silicon primitives it needs | an HLS top, instantiated with the platform's parameters, and the primitives' thinnest wrappers | as measured |
+| **stopgap** | vendor soft IP standing in until the Ouroboros block exists | Vivado catalogue IP | the IP's size |
 
 ## The catalogue
 
@@ -53,7 +63,7 @@ device-tree `compatible` family the generated node uses, so stock drivers bind.
 | interface | implementations | Linux sees | tier |
 |---|---|---|---|
 | DDR behind a PS (Zynq, Versal) | PS hard peripheral: the PS memory controller, reached through PS-PL ports | memory | 1 |
-| DDR3/DDR4/LPDDR4 on fabric pins | vendor soft IP: MIG (7-series, UltraScale); Versal: hard memory controller | memory | 1 |
+| DDR3/DDR4/LPDDR4 on fabric pins | Ouroboros HLS DDR controller, PHY logic and calibration on the I/O primitives (stopgap: MIG); Versal: its hard memory controller | memory | 1 |
 | on-chip RAM (BRAM, URAM) | always present | memory or scratchpad | 1 |
 | HBM (Virtex UltraScale+ HBM, Versal HBM) | fabric hard block | memory | 3 |
 | QSPI / SPI flash | PS hard peripheral; Ouroboros HLS SPI controller (also boot flash) | `jedec,spi-nor` | 2 |
@@ -63,11 +73,11 @@ device-tree `compatible` family the generated node uses, so stock drivers bind.
 | interface | implementations | Linux sees | tier |
 |---|---|---|---|
 | HDMI/DP from a PS DisplayPort controller (KV260, ZCU10x) | PS hard peripheral + Ouroboros HLS display engine feeding its live-video input | `simple-framebuffer` | 1 |
-| HDMI/DVI on fabric pins (TMDS) | Ouroboros HLS display engine + TMDS encoder in HLS + vendor SelectIO/OSERDES for serialising (DVI-compatible HDMI 1.x, no licence); or AMD HDMI TX subsystem (**licensed**) | `simple-framebuffer` | 1 |
+| HDMI/DVI on fabric pins (TMDS) | Ouroboros HLS display engine + HLS TMDS encoder, on output SERDES primitives (DVI-compatible HDMI 1.x) | `simple-framebuffer` | 1 |
 | HDMI through an encoder chip on the board (e.g. ADV7511, SiI9022) | HLS display engine driving parallel video + the chip's I2C set-up | `simple-framebuffer` | 1 |
 | VGA (resistor DAC on fabric pins) | HLS display engine + sync generation | `simple-framebuffer` | 1 |
-| DisplayPort on fabric transceivers | AMD DisplayPort TX subsystem (**licensed**) + transceiver | `simple-framebuffer` | 3 |
-| MIPI DSI panels, LVDS/eDP panels | vendor IP (MIPI DSI TX, **licensed**); LVDS via SelectIO + HLS | `simple-framebuffer` | 3 |
+| DisplayPort on fabric transceivers | Ouroboros HLS DisplayPort source (link layer, training) on a transceiver primitive | `simple-framebuffer` | 3 |
+| MIPI DSI panels, LVDS/eDP panels | Ouroboros HLS DSI or LVDS transmitter on D-PHY / output SERDES primitives | `simple-framebuffer` | 3 |
 
 The display engine is the same HLS C++ on every board: it scans a framebuffer
 out of memory with the platform's video timing. Only what it feeds differs.
@@ -110,26 +120,27 @@ out of memory with the platform's video timing. Only what it feeds differs.
 | interface | implementations | Linux sees | tier |
 |---|---|---|---|
 | Ethernet through a PS MAC (GEM) | PS hard peripheral | `cdns,*-gem` / `xlnx,zynqmp-gem` | 2 |
-| Ethernet with a PHY on fabric pins (MII/RMII/RGMII) | Ouroboros HLS MAC (reference: LiteEth, re-implemented) + vendor SelectIO for RGMII timing; or AMD Tri-Mode Ethernet MAC (**licensed**) | an Ouroboros MAC driver, or `xlnx,axi-ethernet` | 2 |
-| SGMII / 10G and faster on transceivers | vendor IP (**licensed**) + transceiver | vendor driver | 3 |
+| Ethernet with a PHY on fabric pins (MII/RMII/RGMII) | Ouroboros HLS MAC (reference: LiteEth, re-implemented) on DDR-register and delay primitives for RGMII timing | an Ouroboros MAC driver | 2 |
+| SGMII / 10G and faster on transceivers | Ouroboros HLS PCS and MAC on a transceiver primitive | an Ouroboros MAC driver | 3 |
 
 ### Audio, cameras, expansion
 
 | interface | implementations | Linux sees | tier |
 |---|---|---|---|
 | audio codec (I2S + I2C control) | Ouroboros HLS I2S + I2C | ALSA simple-audio-card | 2 |
-| MIPI CSI-2 cameras (KV260: three) | AMD MIPI CSI-2 RX subsystem (**licensed** on some parts) + Ouroboros HLS capture to memory | V4L2 | 2 |
+| MIPI CSI-2 cameras (KV260: three) | Ouroboros HLS CSI-2 receiver and capture to memory, on native D-PHY I/O or input SERDES primitives | V4L2 | 2 |
 | image signal processors on the board (KV260: AP1302) | the chip's I2C set-up | V4L2 subdevice | 3 |
 | USB cameras | through the board's USB | UVC | 2 |
-| PCIe (root port: NVMe, Wi-Fi, GPUs) | fabric hard block (PCIe IP) or PS PCIe (Zynq UltraScale+) | `pci-host-generic` / vendor | 3 |
+| PCIe (root port: NVMe, Wi-Fi, GPUs) | the fabric's PCIe hard block (thinnest wrapper) with Ouroboros HLS bridging, or PS PCIe (Zynq UltraScale+) | `pci-host-generic` | 3 |
 | Pmod, FMC, Arduino/Raspberry Pi headers | pins: whatever is plugged in uses the rows above | per module | 2 |
 
 ### Clocks and reset
 
 Every board has them, so they are never disabled: the generator finds the
 board's clock sources (fabric oscillators, or the PS's fabric clocks on boards
-like the KV260 that have none of their own) and configures Clocking Wizard IP
-for the core's, the accelerator's and each interface's clock domain.
+like the KV260 that have none of their own) and generates one MMCM or PLL per
+clock domain -- the core's, the accelerator's, each interface's -- through its
+thinnest wrapper.
 
 ## Resource accounting
 
@@ -148,12 +159,24 @@ from the target's resources, and gives the rest to the systolic array (the
    pins, SD over SPI -- e.g. a Genesys 2 or an Arty.
 3. Tier 2, by demand. Tier 3, as boards need it.
 
+## Stopgaps
+
+Vendor soft IP that may stand in, and what replaces it. A stopgap is a known
+debt: every build that uses one reports it, and the list should only shrink.
+
+| stopgap | used for | replaced by | why it is hard |
+|---|---|---|---|
+| MIG | DDR on fabric pins (boards without a PS: Genesys 2, Arty) | Ouroboros HLS DDR controller, PHY logic and calibration | read/write levelling and per-bit deskew on the I/O primitives; LiteDRAM shows it can be done outside the vendor IP |
+
+No other stopgap is planned: every other interface above is Ouroboros IP on
+primitives from the start. The KV260 needs none -- its DDR is the PS's.
+
 ## Open
 
-- **[decide]** Vendor IP from the Vivado catalogue counts as generated, not
-  hand-written (above).
-- **[decide]** Whether licensed vendor IP is allowed at all, or only the
-  unlicensed alternatives.
+- What the thinnest wrapper is for each primitive, generated how: Vivado
+  block-design utility cells, or primitive instances in the generated
+  top-level wrapper. Neither is hand-written; which the pinned release
+  supports for each primitive is a Phase 2 check.
 - Exact device-tree `compatible` strings are to be checked against the Linux
   version Ouroboros boots; the families above are indicative.
 - How the generator reads interfaces from board files for boards whose files
