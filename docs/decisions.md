@@ -3,6 +3,18 @@
 The owner's decisions, newest first. Where one overrides a research report in
 `agentic/reports/`, it says so; the report itself is left as written.
 
+## 2026-10-02
+
+**Several harts, DoomV first.** Ouroboros supports more than one hart; the
+hart count is the user's to choose like everything else (configurator CORE-17).
+The reference had to come first: DoomV now runs `-harts=N` -- harts in a fixed
+round-robin, per-hart CLINT `msip`/`mtimecmp` and IMSIC files, Linux SMP
+booting deterministically -- and is held to a multi-hart build of Sail
+(`sail_riscv_mh`, in DoomV's `tools/verification/simulators/sail/multihart`)
+in strict lock-step. Overrides the README's and AGENTS.md's "one hart". What
+lock-step needs for harts that run truly in parallel is in
+[lockstep.md](lockstep.md) ("Several harts").
+
 ## 2026-10-01
 
 **Everything is adjustable, if the user wishes.** Every recommendation the

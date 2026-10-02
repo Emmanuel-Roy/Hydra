@@ -8,7 +8,7 @@ Ouroboros is a FPGA Laptop created by vibe coding to vibe code more. We use a st
 
 Ouroboros aims to be fully RVA23S64 Compliant, verified by running DoomV in Lock-step (which is Sail Compliant).
 
-Ouroboros is more of a funny proof of concept than an actual competitive commercial tool, so for ease of development there will only be basic pipelining with stalls to fix hazards. Additionally, only ONE hart will be supported (Hardware Thread).
+Ouroboros is more of a funny proof of concept than an actual competitive commercial tool, so for ease of development there will only be basic pipelining with stalls to fix hazards. The number of harts (hardware threads) is configurable, one by default; DoomV, the lock-step reference, runs the same number.
 
 Additionally, the CPU core itself is not the primary focus of optimization, it's purpose is only to boot Ubuntu and commercial software here. If I don't get bored, I'll work on optimizing it for either faster throughput or to minimize look-up tables.
 

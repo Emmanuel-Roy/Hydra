@@ -154,6 +154,25 @@ need more:
 
 These are DoomV changes, made in the DoomV repository and pinned here.
 
+## Several harts
+
+DoomV runs `-harts=N`, and is held to `sail_riscv_mh` (N Sail models over one
+memory) in strict lock-step. Both step the harts in a fixed round-robin, one
+step each per round, and the trace marks each hart's records with a line
+`hart <i>` before them. A record can span another hart's lines -- a WFI's
+instruction line comes when its wait starts -- so the reader keeps one record
+in progress per hart.
+
+That fixed order is DoomV's and Sail's, not the core's. Harts in the FPGA run
+at the same time, and the order in which their stores reach memory is the
+memory system's. So for Ouroboros:
+
+| need | for | status |
+|---|---|---|
+| the core's trace in the order its harts' records commit, marked `hart <i>` | any multi-hart lock-step | to design with the trace stream |
+| DoomV stepping the hart the next reference record names, instead of round-robin | following the core's interleaving | to build, in DoomV |
+| a rule for loads whose value another hart decided (the reference's commit order may not be one DoomV can reproduce if the core's memory is not sequentially consistent) | strict lock-step with real concurrency | open |
+
 ## Open
 
 - Whether the board's memory latency can be made run-to-run constant (for

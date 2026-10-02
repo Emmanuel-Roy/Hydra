@@ -74,11 +74,16 @@ machine Linux sees, so they are the same on every board.
 
 ## Open
 
-- Interrupt controller: PLIC (simpler; enough for one hart) or AIA (what
-  DoomV and Sail's RVA23 platform model). Lock-step against DoomV in strict
-  mode wants DoomV's platform; this decides which.
+- Interrupt controller: PLIC (simpler) or AIA (what DoomV and Sail's RVA23
+  platform model). Lock-step against DoomV in strict mode wants DoomV's
+  platform, which is AIA with a pair of IMSIC files per hart at
+  `0x24000000`/`0x28000000 + hart * 0x1000` and a CLINT `msip`/`mtimecmp`
+  per hart; with several harts that leans further toward AIA.
 - Whether PS peripheral interrupts on the KV260 can reach the fabric
   (unverified); polling is the fallback.
 - Cache coherence: none needed for one hart and non-coherent HP ports, as long
   as DMA from the accelerator is ordered with the core's caches by `cbo`
-  instructions (Zicbom).
+  instructions (Zicbom). With several harts the harts' caches must be
+  coherent with each other (or shared), and LR/SC reservations must be
+  broken by another hart's store to the same 8-byte set, as in DoomV and
+  Sail.

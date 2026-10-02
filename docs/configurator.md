@@ -142,6 +142,7 @@ same machine, because strict lock-step needs both sides alike.
 | CORE-14 | Physical address width | F | 32-56 | the smallest covering memory and MMIO | device tree |
 | CORE-15 | Misaligned accesses | F | hardware / trap to SBI | hardware (Sail's split) | trap needs a custom OpenSBI |
 | CORE-16 | Board trace hash interval | F | 2^10-2^24 | 2^16 | lockstep.md |
+| CORE-17 | Harts | E | 1 to as many as fit | 1 on the KV260: a second core costs the LUTs of a large share of the PEs; more where the decode floor leaves room for a whole core | each hart its own CLINT msip/mtimecmp and IMSIC files; caches coherent across harts (board-contract.md); the device tree's cpus; DoomV `-harts=N` |
 
 ### Accelerator
 
